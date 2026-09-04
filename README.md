@@ -33,6 +33,10 @@ In Chrome: open the Pages URL → address bar install icon → **Install**. Web 
 | `src/main.tsx` | Mounts `App` into `#root` |
 | `src/index.css` | Tailwind import; light theme only; no text selection |
 | `src/App.tsx` | Tab shell (Pieces, History, Record a piece, Keyboard check); owns the MIDI connection, pieces, performance history and the session; saves one history entry per finished pass; shows the session or results screen while one is active |
+| `src/DrillsScreen.tsx` | Drill picker: family, variant, key, hands, octaves, notes per click, tempo; piano roll and score preview; Practice / Loop |
+| `src/drills.ts` | Drill generator: scales, contrary motion, arpeggios, broken chords, five-finger patterns, cadences as spelled notes in 4/4; ids that encode the parameters; drill → `Piece` with a generated score |
+| `src/pitches.ts` | Note spelling: tonics, scale formulas for every family, key signatures, chromatic spelling, scale degrees |
+| `src/drillNotation.ts` | Drill → MusicXML: two staves, key signature, chords, rests, accidentals once per bar |
 | `src/HistoryScreen.tsx` | Per piece: line chart of pitch accuracy and on-time % over time, and the list of saved passes with delete |
 | `src/RecordScreen.tsx` | Record a reference: title, time signature, tempo, count-in, play, stop; quantized to 1/16 and saved as a piece |
 | `src/MidiCheck.tsx` | Keyboard check screen: input picker and status, metronome controls with beat indicator, live piano roll |
@@ -51,7 +55,7 @@ In Chrome: open the Pages URL → address bar install icon → **Install**. Web 
 | `src/metronome.ts` | Web Audio click scheduler with accented downbeat; reconciles the audio clock with `performance.now()` so beats and MIDI notes share a timeline |
 | `src/LivePianoRoll.tsx` | Canvas piano roll of recent notes with metronome beat lines and a "now" line |
 | `src/storage.ts` | All `localStorage` reads/writes |
-| `src/*.test.ts` | Unit tests: MIDI parsing, note pairing, clock conversion, `.mid` import, bar counting, the spec §6 alignment checklist |
+| `src/*.test.ts` | Unit tests: MIDI parsing, note pairing, clock conversion, `.mid` import, bar counting, the spec §6 alignment checklist, drill spelling and layout, drill notation |
 
 ## localStorage schema
 
@@ -77,6 +81,7 @@ localStorage is capped at about 5 MB, so attach scores as compressed `.mxl` (ten
 - Loop mode: count-in bar, then the bar range, a one-bar gap, the range again, and so on until Esc. Each pass is scored on its own; the pass in progress when Esc is pressed counts only if something was played in it. Notes struck in the gap bar belong to no pass.
 - Timing: for each correct note, deviation from its expected time at the session BPM. "On time" is within ±60 ms, "close" within ±120 ms; bias is the signed mean (early or late). Reported overall and per bar; extra notes are charged to the bar they were played in.
 - Per-bar strip: green is ≥95% pitch with no extras, yellow ≥80%, red below, gray for bars with no notes in the selected tracks.
+- Drills (see `drills-spec.md`): generated on the fly, never stored; the piece id encodes the parameters (`drill:scale:harmonic-minor:F#:both:2:2`) and History rebuilds the piece from it. Everything is in 4/4; scales go up and down with the top note once and the last note held with the longest plain value that fits the bar. Hands together is two tracks an octave apart; four-octave drills start an octave lower. Keys are spelled conventionally (D♭ major, C♯ minor); modes and pentatonics take the key signature of their parent scale.
 - History: every finished pass is saved (loop passes individually) with date, tempo, bars, tracks and the score summary. The chart plots pitch accuracy and on-time % per pass, oldest to newest; hover a point for its date. Rows can be deleted.
 - Record a piece: one bar of count-in, then everything played until Stop/Esc is quantized to the nearest 1/16 note at the recording tempo (shortest note 1/16, early notes clamped to beat 1) and saved as a one-track piece marked `recorded`; split hands at middle C in the library if needed. Stopping with nothing played saves nothing.
 - Scoring: reference notes on the same beat form a chord; played onsets within 40 ms of a chord's first note join it. Chord sequences are aligned with Needleman–Wunsch (gap cost 1, mismatch cost 1 minus the pitch-set overlap, ties prefer matching). Inside an aligned pair, equal pitches are correct, leftover pairs are wrong notes, remaining reference notes are missed and remaining played notes are extra. Pitch accuracy is correct ÷ reference notes in range.

@@ -52,5 +52,5 @@ export interface Piece {
   timeSignature: [number, number] // e.g. [3, 4] or [6, 8]; default [4, 4]
   defaultBpm: number // clicks of that note per minute, from the file tempo; user can override
   trackNames: string[] // for hand selection
-  source: 'midi-file' | 'recorded'
+  source: 'midi-file' | 'recorded' | 'drill' // drills are generated on demand and never stored (drills-spec.md)
 }

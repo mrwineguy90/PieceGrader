@@ -4,6 +4,8 @@
 // page until it is dismissed.
 
 import { useState } from 'react'
+import { pieceForDrillId } from './drills'
+import DrillsScreen from './DrillsScreen'
 import HistoryScreen from './HistoryScreen'
 import MidiCheck from './MidiCheck'
 import PieceLibrary from './PieceLibrary'
@@ -16,9 +18,10 @@ import type { Performance, Piece } from './types'
 import { useMidiInput } from './useMidiInput'
 import { useSession, type SessionResult } from './useSession'
 
-type Screen = 'pieces' | 'history' | 'record' | 'keyboard'
+type Screen = 'pieces' | 'drills' | 'history' | 'record' | 'keyboard'
 const TABS: { screen: Screen; label: string }[] = [
   { screen: 'pieces', label: 'Pieces' },
+  { screen: 'drills', label: 'Drills' },
   { screen: 'history', label: 'History' },
   { screen: 'record', label: 'Record a piece' },
   { screen: 'keyboard', label: 'Keyboard check' },
@@ -65,10 +68,15 @@ export default function App() {
     body = <ResultsScreen result={status.result} onPractice={session.start} onBack={session.reset} />
   } else if (screen === 'pieces') {
     body = <PieceLibrary pieces={pieces} onChangePieces={changePieces} onStartSession={session.start} />
+  } else if (screen === 'drills') {
+    body = <DrillsScreen onStartSession={session.start} />
   } else if (screen === 'history') {
+    // Drills are not stored, so rebuild one piece per drill id found in history.
+    const drillIds = [...new Set(performances.map((p) => p.pieceId).filter((id) => id.startsWith('drill:')))]
+    const drillPieces = drillIds.map(pieceForDrillId).filter((piece): piece is Piece => piece !== null)
     body = (
       <HistoryScreen
-        pieces={pieces}
+        pieces={[...pieces, ...drillPieces]}
         performances={performances}
         onDelete={(id) => changePerformances(performances.filter((p) => p.id !== id))}
       />

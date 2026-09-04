@@ -54,6 +54,7 @@ export default function ScoreView({ score, positionBeat, zoom, maxHeight }: Prop
       autoResize: true,
       drawTitle: false,
       drawPartNames: false,
+      autoBeam: true, // generated drill notation carries no beams; real scores keep their own
       followCursor: false,
       cursorsOptions: [{ type: CursorType.Standard, color: '#000000', alpha: 0, follow: false }],
     })
