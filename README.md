@@ -11,7 +11,7 @@ npm run build    # type-check + production build to dist/
 
 ## Status
 
-Phase 1 of 5 (MIDI in). Pick a keyboard, run the metronome, watch the live piano roll.
+Phase 2 of 5 (Pieces). Import `.mid` files, name and toggle tracks, view the reference as a piano roll. The Keyboard check tab is the phase 1 screen.
 
 ## Deploy (Cloudflare Pages)
 
@@ -32,20 +32,32 @@ In Chrome: open the Pages URL → address bar install icon → **Install**. Web 
 | `public/favicon.svg` | App icon |
 | `src/main.tsx` | Mounts `App` into `#root` |
 | `src/index.css` | Tailwind import; light theme only; no text selection |
-| `src/App.tsx` | Phase 1 screen: keyboard picker and status, metronome controls with beat indicator, live piano roll |
+| `src/App.tsx` | Tab shell (Pieces, Keyboard check); owns the MIDI connection and the piece list |
+| `src/MidiCheck.tsx` | Keyboard check screen: input picker and status, metronome controls with beat indicator, live piano roll |
+| `src/PieceLibrary.tsx` | Import `.mid`, list pieces, rename and toggle tracks, split hands at middle C, zoomable reference roll, delete |
+| `src/PianoRoll.tsx` | SVG piano roll of a piece in beats: bar lines and numbers, octave lines, notes colored by track |
+| `src/pieces.ts` | `.mid` → `Piece` via `midi-file` (tempo, time signature, track names, percussion ignored); `splitAtMiddleC`, bar helpers |
 | `src/types.ts` | Data model from spec §3: `ReferenceNote`, `PlayedNote`, `Piece` |
 | `src/midi.ts` | `parseMidiMessage` (raw bytes → note on/off/sustain events) and `NoteRecorder` (pairs on/off into `PlayedNote`s) |
 | `src/useMidiInput.ts` | Web MIDI hook: permission, input list, remembered choice, feeds messages into a `NoteRecorder` |
 | `src/metronome.ts` | Web Audio click scheduler with accented downbeat; reconciles the audio clock with `performance.now()` so beats and MIDI notes share a timeline |
 | `src/LivePianoRoll.tsx` | Canvas piano roll of recent notes with metronome beat lines and a "now" line |
 | `src/storage.ts` | All `localStorage` reads/writes |
-| `src/*.test.ts` | Unit tests: MIDI parsing, note pairing, clock conversion |
+| `src/*.test.ts` | Unit tests: MIDI parsing, note pairing, clock conversion, `.mid` import, bar counting |
 
 ## localStorage schema
 
 | Key | Value |
 |---|---|
 | `piece-grader:midiInputId` | id of the chosen MIDI input |
+| `piece-grader:pieces` | `Piece[]` (spec §3); notes in beats, quarter note = 1 |
+
+## Behaviour notes
+
+- Bars are numbered from 1 and counted from the start of the file; pickup bars are not special-cased. Remove repeats in MuseScore before export so bar numbers match the printed page.
+- `beatsPerBar` is in quarter notes so it matches `startBeat`: 3/4 → 3, 6/8 → 3, 2/2 → 4. Only the first tempo and time signature in the file are used.
+- Format 1 files usually start with a notes-free conductor track; tracks with no notes are dropped, so track numbers match the list shown.
+- A one-track file offers "Split hands at middle C": C4 and above go to Right hand, the rest to Left hand.
 
 ## Getting a `.mid` for a piece (one-time prep, outside the app)
 
