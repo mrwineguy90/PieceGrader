@@ -1,3 +1,5 @@
+import type { Score } from './scoring'
+
 // Data model from spec §3. References live in musical time (beats) and
 // performances in wall-clock time (ms); they meet only at scoring time, at the
 // BPM chosen for that session. Never store a performance in beats — that would
@@ -24,6 +26,20 @@ export interface PlayedNote {
 export interface PieceScore {
   fileName: string
   base64: string
+}
+
+// One scored pass, saved for history (spec §3). The score keeps the summary
+// and per-bar numbers but not the note-level results, to keep localStorage
+// small; results can be recomputed from `played` and the piece.
+export interface Performance {
+  id: string
+  pieceId: string
+  playedAt: string // ISO date
+  bpm: number // clicks per minute of the time signature's note
+  tracksIncluded: number[]
+  barRange: [number, number]
+  played: PlayedNote[]
+  score: Omit<Score, 'results'>
 }
 
 export interface Piece {

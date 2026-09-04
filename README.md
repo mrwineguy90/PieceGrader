@@ -11,7 +11,7 @@ npm run build    # type-check + production build to dist/
 
 ## Status
 
-Phase 4 of 5 (Timing and drilling). Pick a piece, tracks, bar range and BPM, press Practice: one bar of count-in, play, and get pitch and timing results on a piano roll with a per-bar strip. Loop mode repeats the range with a one-bar gap and grades each pass. Phase 5 adds history, record-a-reference and deploy.
+All five phases built. Import a `.mid` (optionally attach a MusicXML score), pick tracks, bar range and BPM, press Practice: one bar of count-in, play along with the score or piano roll, and get pitch and timing results with a per-bar strip. Loop mode repeats a range and grades each pass. History keeps every pass with a trend chart. Record a piece plays it in when no file exists. Installs as a desktop PWA.
 
 ## Deploy (Cloudflare Pages)
 
@@ -32,7 +32,9 @@ In Chrome: open the Pages URL → address bar install icon → **Install**. Web 
 | `public/favicon.svg` | App icon |
 | `src/main.tsx` | Mounts `App` into `#root` |
 | `src/index.css` | Tailwind import; light theme only; no text selection |
-| `src/App.tsx` | Tab shell (Pieces, Keyboard check); owns the MIDI connection, the piece list and the session; shows the session or results screen while one is active |
+| `src/App.tsx` | Tab shell (Pieces, History, Record a piece, Keyboard check); owns the MIDI connection, pieces, performance history and the session; saves one history entry per finished pass; shows the session or results screen while one is active |
+| `src/HistoryScreen.tsx` | Per piece: line chart of pitch accuracy and on-time % over time, and the list of saved passes with delete |
+| `src/RecordScreen.tsx` | Record a reference: title, time signature, tempo, count-in, play, stop; quantized to 1/16 and saved as a piece |
 | `src/MidiCheck.tsx` | Keyboard check screen: input picker and status, metronome controls with beat indicator, live piano roll |
 | `src/PieceList.tsx` | Library sidebar: import `.mid` button and the list of pieces |
 | `src/PieceLibrary.tsx` | Selected piece: rename and toggle tracks, time signature, split hands at middle C, attach/remove a MusicXML score, BPM, bar range, loop toggle, zoomable reference roll, score preview, Practice button, delete |
@@ -58,7 +60,9 @@ In Chrome: open the Pages URL → address bar install icon → **Install**. Web 
 | `piece-grader:midiInputId` | id of the chosen MIDI input |
 | `piece-grader:pieces` | `Piece[]` (spec §3, with `timeSignature: [n, d]` in place of `beatsPerBar`, plus optional `score: { fileName, base64 }` holding a MusicXML file); notes in beats, quarter note = 1. Pieces saved with `beatsPerBar` are read as n/4. |
 
-localStorage is capped at about 5 MB, so attach scores as compressed `.mxl` (tens of KB) rather than `.musicxml` (hundreds of KB); the app alerts if a save fails.
+| `piece-grader:performances` | `Performance[]` (spec §3), oldest first; `score` holds the summary and per-bar numbers without note-level results |
+
+localStorage is capped at about 5 MB, so attach scores as compressed `.mxl` (tens of KB) rather than `.musicxml` (hundreds of KB), and delete old performances from History if it fills up; the app alerts if a save fails.
 
 ## Behaviour notes
 
@@ -73,6 +77,8 @@ localStorage is capped at about 5 MB, so attach scores as compressed `.mxl` (ten
 - Loop mode: count-in bar, then the bar range, a one-bar gap, the range again, and so on until Esc. Each pass is scored on its own; the pass in progress when Esc is pressed counts only if something was played in it. Notes struck in the gap bar belong to no pass.
 - Timing: for each correct note, deviation from its expected time at the session BPM. "On time" is within ±60 ms, "close" within ±120 ms; bias is the signed mean (early or late). Reported overall and per bar; extra notes are charged to the bar they were played in.
 - Per-bar strip: green is ≥95% pitch with no extras, yellow ≥80%, red below, gray for bars with no notes in the selected tracks.
+- History: every finished pass is saved (loop passes individually) with date, tempo, bars, tracks and the score summary. The chart plots pitch accuracy and on-time % per pass, oldest to newest; hover a point for its date. Rows can be deleted.
+- Record a piece: one bar of count-in, then everything played until Stop/Esc is quantized to the nearest 1/16 note at the recording tempo (shortest note 1/16, early notes clamped to beat 1) and saved as a one-track piece marked `recorded`; split hands at middle C in the library if needed. Stopping with nothing played saves nothing.
 - Scoring: reference notes on the same beat form a chord; played onsets within 40 ms of a chord's first note join it. Chord sequences are aligned with Needleman–Wunsch (gap cost 1, mismatch cost 1 minus the pitch-set overlap, ties prefer matching). Inside an aligned pair, equal pitches are correct, leftover pairs are wrong notes, remaining reference notes are missed and remaining played notes are extra. Pitch accuracy is correct ÷ reference notes in range.
 
 ## Getting a `.mid` for a piece (one-time prep, outside the app)

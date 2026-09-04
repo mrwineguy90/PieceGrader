@@ -6,7 +6,7 @@
 // BPM the user sees counts those clicks. The helpers below convert.
 
 import { parseMidi, type MidiEvent } from 'midi-file'
-import type { Piece, ReferenceNote } from './types'
+import type { Piece, PlayedNote, ReferenceNote } from './types'
 
 const PERCUSSION_CHANNEL = 9 // "channel 10" in 1-based MIDI talk; drums, never piano
 const DEFAULT_QUARTER_BPM = 120
@@ -109,6 +109,33 @@ const NOTE_SYMBOLS: Record<number, string> = { 1: '𝅝', 2: '𝅗𝅥', 4: '♩
 
 export function bpmLabel(bpm: number, timeSignature: [number, number]): string {
   return `${NOTE_SYMBOLS[timeSignature[1]] ?? `1/${timeSignature[1]}`} = ${bpm}`
+}
+
+const QUANTIZE_STEPS_PER_QUARTER = 4 // nearest 1/16 note (spec §4)
+
+// Record-a-reference: notes played against the metronome (ms from beat 1)
+// become a piece in beats, snapped to the nearest 1/16 note. One track; the
+// user can split hands at middle C afterwards.
+export function quantizeRecording(played: PlayedNote[], quarterBpm: number, timeSignature: [number, number], title: string): Piece {
+  const msPerQuarter = 60_000 / quarterBpm
+  const toBeats = (ms: number) => Math.round((ms / msPerQuarter) * QUANTIZE_STEPS_PER_QUARTER) / QUANTIZE_STEPS_PER_QUARTER
+  const shortest = 1 / QUANTIZE_STEPS_PER_QUARTER
+  const notes: ReferenceNote[] = played.map((note) => ({
+    midi: note.midi,
+    startBeat: Math.max(0, toBeats(note.startMs)),
+    durationBeats: Math.max(shortest, toBeats(note.durationMs)),
+    track: 0,
+  }))
+  notes.sort((a, b) => a.startBeat - b.startBeat || a.midi - b.midi)
+  return {
+    id: crypto.randomUUID(),
+    title,
+    notes,
+    timeSignature,
+    defaultBpm: Math.round(quarterBpm / clickLengthInBeats(timeSignature)),
+    trackNames: ['Recorded'],
+    source: 'recorded',
+  }
 }
 
 // Score files travel through localStorage as base64 (JSON can't hold bytes).

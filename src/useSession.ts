@@ -79,10 +79,14 @@ function timeline(session: ActiveSession, nowMs: number, firstClickMs: number) {
   }
 }
 
-export function useSession(midi: MidiInputState) {
+// onResult is called once per finished session, for saving history. Kept in a
+// ref so the interval and key handlers below always see the latest callback.
+export function useSession(midi: MidiInputState, onResult?: (result: SessionResult) => void) {
   const [metronome] = useState(() => new Metronome())
   const [status, setStatus] = useState<SessionStatus>({ phase: 'idle' })
   const active = useRef<ActiveSession | null>(null)
+  const onResultRef = useRef(onResult)
+  onResultRef.current = onResult
   const running = status.phase === 'count-in' || status.phase === 'recording'
 
   const start = (config: SessionConfig) => {
@@ -137,7 +141,9 @@ export function useSession(midi: MidiInputState) {
     // The pass in progress counts unless this is a loop and nothing was played in it.
     const inProgress = scorePass(session, session.passes.length, performance.now())
     if (!session.config.loop || inProgress.played.length > 0 || session.passes.length === 0) session.passes.push(inProgress)
-    setStatus({ phase: 'done', result: { config: session.config, passes: session.passes } })
+    const result = { config: session.config, passes: session.passes }
+    setStatus({ phase: 'done', result })
+    onResultRef.current?.(result)
   }
 
   const reset = () => {

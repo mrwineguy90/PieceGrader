@@ -7,6 +7,7 @@ import {
   bpmLabel,
   clickLengthInBeats,
   parseMidiFilePiece,
+  quantizeRecording,
   quarterNoteBpm,
   splitAtMiddleC,
 } from './pieces'
@@ -101,6 +102,28 @@ describe('splitAtMiddleC', () => {
       [60, 0],
       [59, 1],
     ])
+  })
+})
+
+describe('quantizeRecording', () => {
+  it('snaps played notes to the nearest 1/16 at the recording tempo', () => {
+    // 120 BPM: a quarter is 500 ms, a sixteenth 125 ms.
+    const played = [
+      { midi: 60, startMs: 0, durationMs: 460, velocity: 80 }, // ≈ one quarter
+      { midi: 62, startMs: 510, durationMs: 240, velocity: 80 }, // beat 1, ≈ an eighth
+      { midi: 64, startMs: 1130, durationMs: 30, velocity: 80 }, // beat 2.25, too short → shortest
+      { midi: 48, startMs: -40, durationMs: 1000, velocity: 80 }, // slightly early → clamped to 0
+    ]
+    const piece = quantizeRecording(played, 120, [6, 8], 'Recorded thing')
+    expect(piece.notes).toEqual([
+      { midi: 48, startBeat: 0, durationBeats: 2, track: 0 },
+      { midi: 60, startBeat: 0, durationBeats: 1, track: 0 },
+      { midi: 62, startBeat: 1, durationBeats: 0.5, track: 0 },
+      { midi: 64, startBeat: 2.25, durationBeats: 0.25, track: 0 },
+    ])
+    expect(piece.source).toBe('recorded')
+    expect(piece.trackNames).toEqual(['Recorded'])
+    expect(piece.defaultBpm).toBe(240) // quarter = 120 shown as eighth clicks
   })
 })
 
