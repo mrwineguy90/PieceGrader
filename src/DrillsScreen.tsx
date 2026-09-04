@@ -3,7 +3,8 @@
 // same session as an imported one. The ladder is added in phase 8.
 
 import { useMemo, useState } from 'react'
-import { drillToPiece, FAMILIES, generateDrill, keysFor, type DrillSpec, type Family, type Hands } from './drills'
+import { FAMILIES, keysFor, type DrillSpec, type Family, type Hands } from './drillCatalog'
+import { drillToPiece, generateDrill } from './drills'
 import PianoRoll from './PianoRoll'
 import { barCount } from './pieces'
 import ScoreView from './ScoreView'

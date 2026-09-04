@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { drillId, drillToPiece, generateDrill, parseDrillId, type DrillSpec } from './drills'
+import { drillId, parseDrillId, type DrillSpec } from './drillCatalog'
+import { drillToPiece, generateDrill } from './drills'
+import { HANON, hanonPitches } from './hanon'
 import { chromaticOctave, keyFifths, scaleUpAndDown, sevenNoteScale } from './pitches'
 import { barCount } from './pieces'
 
@@ -98,6 +100,37 @@ describe('generateDrill', () => {
   it('four-octave drills start an octave lower so they stay on the keyboard', () => {
     const drill = generateDrill(spec({ key: 'B', octaves: 4 }))
     expect(Math.max(...drill.notes.map((note) => note.midi))).toBeLessThanOrEqual(108)
+  })
+})
+
+describe('hanon', () => {
+  it('No. 1 is C E F G A G F E stepping up from C3, with 233 notes in all', () => {
+    const { sequence, final } = hanonPitches(1, 3)
+    expect(sequence.slice(0, 16).map((p) => p.midi)).toEqual([48, 52, 53, 55, 57, 55, 53, 52, 50, 53, 55, 57, 59, 57, 55, 53])
+    expect(sequence.length).toBe((14 + 15) * 8)
+    expect(sequence[14 * 8].midi).toBe(79) // descent starts on G5
+    expect(final.map((p) => p.midi)).toEqual([48])
+  })
+
+  it('honours the irregular groups and the final chord', () => {
+    expect(hanonPitches(12, 3).sequence.slice(0, 8).map((p) => p.midi)).toEqual([55, 48, 52, 50, 48, 50, 52, 48]) // G C E D C D E C
+    expect(hanonPitches(20, 3).final.map((p) => p.midi)).toEqual([52, 60]) // E3 + C4
+    for (const number of Object.keys(HANON).map(Number)) {
+      const { sequence } = hanonPitches(number, 3)
+      expect(sequence.length % 8).toBe(0)
+      expect(Math.max(...sequence.map((p) => p.midi))).toBeLessThanOrEqual(96)
+    }
+  })
+
+  it('lays out as a drill with the left hand an octave below', () => {
+    const drill = generateDrill(spec({ family: 'hanon', variant: '3', hands: 'both', notesPerClick: 4 }))
+    const right = drill.notes.filter((n) => n.hand === 0)
+    const left = drill.notes.filter((n) => n.hand === 1)
+    expect(right[0].midi).toBe(48)
+    expect(left[0].midi).toBe(36)
+    expect(right[1].startBeat).toBe(0.25)
+    expect(drill.title).toBe('Hanon No. 3 · hands together · sixteenths')
+    expect(drill.keyFifths).toBe(0)
   })
 })
 

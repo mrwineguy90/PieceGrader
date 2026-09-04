@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { drillToMusicXml, keySignatureAlter, simpleDurationFitting } from './drillNotation'
-import { generateDrill, type DrillSpec } from './drills'
+import type { DrillSpec } from './drillCatalog'
+import { generateDrill } from './drills'
 
 const spec = (changes: Partial<DrillSpec>): DrillSpec => ({
   family: 'scale',

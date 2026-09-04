@@ -126,6 +126,10 @@ export interface TimingSummary {
   close: number // fraction within ±CLOSE_MS
   meanAbsDeviationMs: number
   meanDeviationMs: number // negative = early on average, positive = late
+  // How uneven the gaps between consecutive correct notes were: the mean
+  // change in deviation from one note to the next. A scale played perfectly
+  // evenly but 40 ms late throughout scores 0 here, which is the point.
+  evennessMs: number
 }
 
 export interface Summary {
@@ -181,10 +185,18 @@ function summarize(results: NoteResult[]): Summary {
   const count = (kind: NoteResult['kind']) => results.filter((result) => result.kind === kind).length
   const referenceCount = results.filter((result) => result.reference !== null).length
   const correct = count('correct')
-  const deviations = results.flatMap((result) => (result.deviationMs === null ? [] : [result.deviationMs]))
+  const timed = results
+    .filter((result) => result.deviationMs !== null && result.reference !== null)
+    .sort((a, b) => a.reference!.startBeat - b.reference!.startBeat)
+  const deviations = timed.map((result) => result.deviationMs!)
   const mean = (values: number[]) => (values.length === 0 ? 0 : values.reduce((sum, value) => sum + value, 0) / values.length)
   const fractionWithin = (limitMs: number) =>
     deviations.length === 0 ? 0 : deviations.filter((deviation) => Math.abs(deviation) <= limitMs).length / deviations.length
+  // Played gap minus reference gap between successive onsets is just the change in deviation.
+  const gapChanges: number[] = []
+  for (let i = 1; i < timed.length; i++) {
+    if (timed[i].reference!.startBeat !== timed[i - 1].reference!.startBeat) gapChanges.push(Math.abs(deviations[i] - deviations[i - 1]))
+  }
   return {
     referenceCount,
     correct,
@@ -198,6 +210,7 @@ function summarize(results: NoteResult[]): Summary {
       close: fractionWithin(CLOSE_MS),
       meanAbsDeviationMs: mean(deviations.map(Math.abs)),
       meanDeviationMs: mean(deviations),
+      evennessMs: mean(gapChanges),
     },
   }
 }

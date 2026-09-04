@@ -84,6 +84,7 @@ export default function ResultsScreen({ result, onPractice, onBack }: Props) {
         <Stat label={`close (±${CLOSE_MS} ms)`} value={percent(score.timing.close)} color="text-gray-800" />
         <Stat label="mean |deviation|" value={`${Math.round(score.timing.meanAbsDeviationMs)} ms`} color="text-gray-800" />
         <Stat label="bias" value={biasLabel(score.timing.meanDeviationMs)} color="text-gray-800" />
+        <Stat label="evenness (gap error)" value={`${Math.round(score.timing.evennessMs)} ms`} color="text-gray-800" />
       </div>
 
       <div className="mt-6 flex flex-wrap gap-1">

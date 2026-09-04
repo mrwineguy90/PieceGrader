@@ -93,6 +93,14 @@ describe('scorePerformance', () => {
     expect(score.timing.meanAbsDeviationMs).toBeCloseTo(20)
   })
 
+  it('evenness ignores a steady offset but catches uneven gaps', () => {
+    expect(scorePerformance(reference, play(reference, 40), context).timing.evennessMs).toBeCloseTo(0)
+    const lumpy = play(bar1)
+    lumpy[1].startMs += 30 // gap grows by 30 then shrinks by 30
+    const { evennessMs } = scorePerformance(bar1, lumpy, { ...context, barRange: [1, 1] }).timing
+    expect(evennessMs).toBeCloseTo((30 + 30 + 0) / 3)
+  })
+
   it('on time is within ±60 ms, close within ±120 ms', () => {
     const played = play(bar1)
     played[0].startMs -= 50 // early but on time
