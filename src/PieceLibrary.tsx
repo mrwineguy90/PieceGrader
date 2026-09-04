@@ -1,16 +1,27 @@
-// The piece library and session setup: import .mid files, pick a piece, name
-// its tracks and choose which are included, set the BPM, see the piano roll,
-// start practising.
+// The piece library and session setup: pick a piece, name its tracks and
+// choose which are included, set time signature, BPM, bar range and loop,
+// attach a MusicXML score, see the piano roll, start practising.
 
 import { useState } from 'react'
 import { TimeSignatureInput } from './MidiCheck'
 import PianoRoll from './PianoRoll'
-import { barCount, bpmLabel, clickLengthInBeats, parseMidiFilePiece, quarterNoteBpm, splitAtMiddleC } from './pieces'
+import PieceList from './PieceList'
+import ScoreView from './ScoreView'
+import {
+  barCount,
+  bpmLabel,
+  clickLengthInBeats,
+  encodeScoreFile,
+  parseMidiFilePiece,
+  quarterNoteBpm,
+  splitAtMiddleC,
+} from './pieces'
 import type { Piece } from './types'
 import type { SessionConfig } from './useSession'
 
 const MIN_BPM = 30
 const MAX_BPM = 240
+const PREVIEW_SCORE_ZOOM = 0.6
 
 interface Props {
   pieces: Piece[]
@@ -36,14 +47,6 @@ export default function PieceLibrary({ pieces, onChangePieces, onStartSession }:
     setBarRange(wholePiece(piece))
   }
 
-  // Keep 1 ≤ from ≤ to ≤ last bar while the user types.
-  const changeBarRange = (piece: Piece, from: number, to: number) => {
-    const last = barCount(piece)
-    const clampedFrom = Math.min(last, Math.max(1, from || 1))
-    const clampedTo = Math.min(last, Math.max(clampedFrom, to || last))
-    setBarRange([clampedFrom, clampedTo])
-  }
-
   const updatePiece = (updated: Piece) => {
     onChangePieces(pieces.map((piece) => (piece.id === updated.id ? updated : piece)))
   }
@@ -58,6 +61,11 @@ export default function PieceLibrary({ pieces, onChangePieces, onStartSession }:
     } catch (error) {
       setImportError(error instanceof Error ? error.message : 'Could not read that file.')
     }
+  }
+
+  const attachScore = async (piece: Piece, file: File) => {
+    const bytes = new Uint8Array(await file.arrayBuffer())
+    updatePiece({ ...piece, score: { fileName: file.name, base64: encodeScoreFile(bytes) } })
   }
 
   const deletePiece = (piece: Piece) => {
@@ -82,50 +90,49 @@ export default function PieceLibrary({ pieces, onChangePieces, onStartSession }:
     setBpm(toNewClicks(bpm))
   }
 
+  // Keep 1 ≤ from ≤ to ≤ last bar while the user types.
+  const changeBarRange = (piece: Piece, from: number, to: number) => {
+    const last = barCount(piece)
+    const clampedFrom = Math.min(last, Math.max(1, from || 1))
+    const clampedTo = Math.min(last, Math.max(clampedFrom, to || last))
+    setBarRange([clampedFrom, clampedTo])
+  }
+
   return (
     <div className="mt-6 flex gap-6">
-      <aside className="w-64 shrink-0">
-        <label className={`${buttonClass} block cursor-pointer text-center`}>
-          Import .mid file
-          <input
-            type="file"
-            accept=".mid,.midi"
-            className="hidden"
-            onChange={(e) => {
-              const file = e.target.files?.[0]
-              if (file) void importFile(file)
-              e.target.value = '' // so the same file can be imported again
-            }}
-          />
-        </label>
-        {importError && <p className="mt-2 text-sm text-red-600">{importError}</p>}
-        <ul className="mt-4 space-y-1">
-          {pieces.map((piece) => (
-            <li key={piece.id}>
-              <button
-                className={`w-full rounded px-2 py-1 text-left hover:bg-gray-100 ${piece.id === selectedId ? 'bg-blue-50 font-medium' : ''}`}
-                onClick={() => selectPiece(piece)}
-              >
-                {piece.title}
-                <span className="block text-xs text-gray-500">
-                  {barCount(piece)} bars · {piece.timeSignature.join('/')} · {bpmLabel(piece.defaultBpm, piece.timeSignature)} ·{' '}
-                  {piece.trackNames.length}{' '}
-                  {piece.trackNames.length === 1 ? 'track' : 'tracks'}
-                </span>
-              </button>
-            </li>
-          ))}
-        </ul>
-        {pieces.length === 0 && <p className="mt-4 text-sm text-gray-500">No pieces yet. Import a .mid file to start.</p>}
-      </aside>
+      <PieceList pieces={pieces} selectedId={selectedId} importError={importError} onSelect={selectPiece} onImportFile={(file) => void importFile(file)} />
 
       {selected && (
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline justify-between">
             <h2 className="text-lg font-medium">{selected.title}</h2>
-            <button className="text-sm text-red-600 hover:underline" onClick={() => deletePiece(selected)}>
-              Delete
-            </button>
+            <div className="flex items-center gap-4 text-sm">
+              {selected.score ? (
+                <span className="text-gray-500">
+                  Score: {selected.score.fileName}{' '}
+                  <button className="text-red-600 hover:underline" onClick={() => updatePiece({ ...selected, score: undefined })}>
+                    remove
+                  </button>
+                </span>
+              ) : (
+                <label className={`${buttonClass} cursor-pointer`}>
+                  Attach score (.mxl / .musicxml)
+                  <input
+                    type="file"
+                    accept=".mxl,.musicxml,.xml"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0]
+                      if (file) void attachScore(selected, file)
+                      e.target.value = ''
+                    }}
+                  />
+                </label>
+              )}
+              <button className="text-red-600 hover:underline" onClick={() => deletePiece(selected)}>
+                Delete
+              </button>
+            </div>
           </div>
 
           <div className="mt-3 flex flex-wrap items-center gap-4">
@@ -217,6 +224,12 @@ export default function PieceLibrary({ pieces, onChangePieces, onStartSession }:
           <div className="mt-2">
             <PianoRoll piece={selected} includedTracks={includedTracks} pixelsPerBeat={pixelsPerBeat} highlightBars={barRange} />
           </div>
+
+          {selected.score && (
+            <div className="mt-4 rounded border border-gray-300 p-2">
+              <ScoreView score={selected.score} zoom={PREVIEW_SCORE_ZOOM} maxHeight="50vh" />
+            </div>
+          )}
         </div>
       )}
     </div>

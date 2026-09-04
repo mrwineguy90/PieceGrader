@@ -5,18 +5,22 @@
 export interface Beat {
   index: number // 0-based count of beats since start
   isDownbeat: boolean
-  timeMs: number // on the performance.now() clock, see ClockAnchor
 }
 
 // Clock reconciliation (spec §2).
 // Web MIDI stamps events on the performance.now() clock. Web Audio schedules
 // on AudioContext.currentTime, which starts at 0 when the context is created
-// and runs on the audio hardware clock. To draw a click and a played note on
+// and runs on the audio hardware clock. To put a click and a played note on
 // the same timeline we need one pairing of the two clocks, taken at the same
 // instant. getOutputTimestamp() gives exactly that: the context time of the
 // sample now leaving the speakers and the performance.now() at which it left,
-// so output latency is accounted for. Captured once at start; any drift over a
-// few minutes is far below the ±60 ms grading window.
+// so output latency is accounted for.
+//
+// Gotcha: on a context that has only just been created, getOutputTimestamp()
+// returns zeros for both clocks until the audio thread has produced output,
+// often for the first ~100 ms. So the anchor is re-captured on every
+// scheduler tick and nothing caches beat times computed before it settled;
+// callers ask beatTimeMs() when they need a time.
 export interface ClockAnchor {
   contextTime: number // seconds, AudioContext clock
   performanceTime: number // ms, performance.now() clock
@@ -38,16 +42,9 @@ export class Metronome {
   private timer: number | null = null
   private bpm = 60
   private beatsPerBar = 4
+  private firstBeatAudioTime = 0
   private nextBeatAudioTime = 0
   private nextBeatIndex = 0
-  private firstBeatMs = 0
-
-  // When beat `index` falls, on the performance.now() clock. Beats are evenly
-  // spaced from the first, so this is known before the beat is scheduled; the
-  // session uses it to fix "time 0" on the first beat after the count-in.
-  beatTimeMs(index: number): number {
-    return this.firstBeatMs + (index * 60_000) / this.bpm
-  }
 
   start(bpm: number, beatsPerBar: number): void {
     this.stop()
@@ -57,9 +54,9 @@ export class Metronome {
     this.beatsPerBar = beatsPerBar
     this.beats = []
     this.nextBeatIndex = 0
-    this.nextBeatAudioTime = this.context.currentTime + FIRST_BEAT_DELAY_SEC
+    this.firstBeatAudioTime = this.context.currentTime + FIRST_BEAT_DELAY_SEC
+    this.nextBeatAudioTime = this.firstBeatAudioTime
     this.anchor = this.captureAnchor()
-    this.firstBeatMs = audioTimeToPerformanceMs(this.anchor, this.nextBeatAudioTime)
     this.running = true
     this.timer = window.setInterval(() => this.scheduleDueBeats(), TICK_MS)
     this.scheduleDueBeats()
@@ -71,12 +68,19 @@ export class Metronome {
     this.running = false
   }
 
+  // When beat `index` falls, on the performance.now() clock. Beats are evenly
+  // spaced from the first, so this is known before the beat is scheduled; the
+  // session uses it to fix "time 0" on the first beat after the count-in.
+  beatTimeMs(index: number): number {
+    return audioTimeToPerformanceMs(this.anchor, this.firstBeatAudioTime + (index * 60) / this.bpm)
+  }
+
   // The beat most recently heard at nowMs (performance.now() clock), or null
   // before the first click.
   currentBeat(nowMs: number): Beat | null {
     let latest: Beat | null = null
     for (const beat of this.beats) {
-      if (beat.timeMs > nowMs) break
+      if (this.beatTimeMs(beat.index) > nowMs) break
       latest = beat
     }
     return latest
@@ -85,22 +89,21 @@ export class Metronome {
   private captureAnchor(): ClockAnchor {
     const context = this.context!
     const stamp = context.getOutputTimestamp?.()
-    if (stamp && stamp.contextTime !== undefined && stamp.performanceTime !== undefined) {
+    if (stamp?.contextTime && stamp.performanceTime) {
       return { contextTime: stamp.contextTime, performanceTime: stamp.performanceTime }
     }
+    // Not producing output yet (or no getOutputTimestamp): pair the clocks
+    // ourselves. Close enough until the real stamp arrives a tick or two later.
     return { contextTime: context.currentTime, performanceTime: performance.now() }
   }
 
   private scheduleDueBeats(): void {
     const context = this.context!
+    this.anchor = this.captureAnchor()
     while (this.nextBeatAudioTime < context.currentTime + LOOKAHEAD_SEC) {
       const isDownbeat = this.nextBeatIndex % this.beatsPerBar === 0
       this.playClick(this.nextBeatAudioTime, isDownbeat)
-      this.beats.push({
-        index: this.nextBeatIndex,
-        isDownbeat,
-        timeMs: audioTimeToPerformanceMs(this.anchor, this.nextBeatAudioTime),
-      })
+      this.beats.push({ index: this.nextBeatIndex, isDownbeat })
       this.nextBeatIndex += 1
       this.nextBeatAudioTime += 60 / this.bpm
     }

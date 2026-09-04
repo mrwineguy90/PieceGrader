@@ -3,8 +3,8 @@
 Full spec is in `piece-grader-spec.md`. These rules apply every session and override any instinct toward thoroughness. The owner troubleshoots this code himself: **small, plain, readable.**
 
 ## Codebase size
-- Allowed dependencies: `react`, `react-dom`, `vite`, `typescript`, `tailwindcss`, `vite-plugin-pwa`, `vitest`, `midi-file`. Anything else → ask first.
-- No state library, router, component library, CSS-in-JS, form library, or notation-rendering library. `useState` is enough.
+- Allowed dependencies: `react`, `react-dom`, `vite`, `typescript`, `tailwindcss`, `vite-plugin-pwa`, `vitest`, `midi-file`, `opensheetmusicdisplay` (approved 2026-09-04 for the score view; the only notation rendering allowed). Anything else → ask first.
+- No state library, router, component library, CSS-in-JS, or form library. `useState` is enough.
 - No abstraction until something is used three times. No barrel `index.ts` files.
 - Under 20 source files, none over 250 lines. Propose a split before exceeding.
 - Keep `README.md` current with a one-line-per-file map.

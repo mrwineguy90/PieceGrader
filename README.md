@@ -34,10 +34,12 @@ In Chrome: open the Pages URL → address bar install icon → **Install**. Web 
 | `src/index.css` | Tailwind import; light theme only; no text selection |
 | `src/App.tsx` | Tab shell (Pieces, Keyboard check); owns the MIDI connection, the piece list and the session; shows the session or results screen while one is active |
 | `src/MidiCheck.tsx` | Keyboard check screen: input picker and status, metronome controls with beat indicator, live piano roll |
-| `src/PieceLibrary.tsx` | Import `.mid`, list pieces, rename and toggle tracks, time signature, split hands at middle C, BPM, bar range, loop toggle, zoomable reference roll, Practice button, delete |
+| `src/PieceList.tsx` | Library sidebar: import `.mid` button and the list of pieces |
+| `src/PieceLibrary.tsx` | Selected piece: rename and toggle tracks, time signature, split hands at middle C, attach/remove a MusicXML score, BPM, bar range, loop toggle, zoomable reference roll, score preview, Practice button, delete |
+| `src/ScoreView.tsx` | Renders an attached MusicXML score with OpenSheetMusicDisplay; walks OSMD's cursor once to learn each step's beat and pixel position, then draws its own playhead that glides between steps and scrolls to follow |
 | `src/PianoRoll.tsx` | SVG piano roll of a piece in beats: bar lines and numbers, octave lines, notes colored by track; optional overlay of scored played notes (green/yellow/red/hollow); dims bars outside a range |
 | `src/useSession.ts` | A practice session: count-in, recording into a `NoteRecorder`, bar/beat status, passes (one, or repeated with a one-bar gap in loop mode) each scored, auto-stop or Esc |
-| `src/SessionScreen.tsx` | While playing: piece line, big bar number, beat dots, pass number and last pass result in loop mode, Stop button |
+| `src/SessionScreen.tsx` | While playing: piece line, big bar number, beat dots, the score with a moving cursor (or the reference roll with a playhead when no score is attached), pass number and last pass result in loop mode, Stop button |
 | `src/ResultsScreen.tsx` | Pass picker, pitch and timing headlines, per-bar strip (click to drill), piano roll with the performance overlaid, per-bar table |
 | `src/scoring.ts` | Chord grouping, Needleman–Wunsch chord alignment, note matching by pitch, pitch and timing summaries overall and per bar |
 | `src/pieces.ts` | `.mid` → `Piece` via `midi-file` (tempo, time signature, track names, percussion ignored); `splitAtMiddleC`; bar, click-length and BPM-conversion helpers |
@@ -54,7 +56,9 @@ In Chrome: open the Pages URL → address bar install icon → **Install**. Web 
 | Key | Value |
 |---|---|
 | `piece-grader:midiInputId` | id of the chosen MIDI input |
-| `piece-grader:pieces` | `Piece[]` (spec §3, with `timeSignature: [n, d]` in place of `beatsPerBar`); notes in beats, quarter note = 1. Pieces saved with `beatsPerBar` are read as n/4. |
+| `piece-grader:pieces` | `Piece[]` (spec §3, with `timeSignature: [n, d]` in place of `beatsPerBar`, plus optional `score: { fileName, base64 }` holding a MusicXML file); notes in beats, quarter note = 1. Pieces saved with `beatsPerBar` are read as n/4. |
+
+localStorage is capped at about 5 MB, so attach scores as compressed `.mxl` (tens of KB) rather than `.musicxml` (hundreds of KB); the app alerts if a save fails.
 
 ## Behaviour notes
 
@@ -62,7 +66,10 @@ In Chrome: open the Pages URL → address bar install icon → **Install**. Web 
 - **Time signature** (deviation from spec §3, which stored `beatsPerBar`): the piece keeps its signature, e.g. 6/8. The metronome clicks the note the bottom number names, accent on beat 1, so 6/8 gets six eighth-note clicks per bar and 3/4 gets three quarter clicks. BPM is shown as that note per minute (♪ = 160); the file's quarter-note tempo is converted on import. Note times stay in quarter notes internally and scoring converts. Only the first tempo and time signature in the file are used; the piece's signature can be edited in the library (top number 1–32, bottom 2/4/8/16), which re-expresses the BPM so the real tempo is unchanged.
 - Format 1 files usually start with a notes-free conductor track; tracks with no notes are dropped, so track numbers match the list shown.
 - A one-track file offers "Split hands at middle C": C4 and above go to Right hand, the rest to Left hand.
+- Clocks: MIDI events are on `performance.now()`, clicks on the AudioContext clock; `getOutputTimestamp()` pairs them. A freshly created AudioContext reports zeros from that call for its first ~100 ms, so the metronome re-captures the pairing every scheduler tick and beat times are always asked for fresh, never cached at session start.
 - Session: one full bar of count-in, then time 0 is beat 1 of the first selected bar. Notes struck up to 150 ms before that still count; anything earlier is ignored as count-in noodling. Recording stops one click after the last reference note ends, or on Esc.
+- Session screen shows the score with a moving cursor when a MusicXML file is attached, otherwise the reference roll with a red playhead (both a deviation from spec §5, added on request). The roll stays still while the line crosses it and flips when the line nears the right edge, so you can read ahead. During the count-in and the loop gap the cursor waits at the start of the range.
+- **Score sync** (deviation from spec §1, which excluded notation rendering): the score is rendered by OpenSheetMusicDisplay. A red playhead slides continuously between notes, moving to the barline before jumping to a new bar or system, and the page scrolls to keep the current system in view. It is driven by beat, so the `.mid` and the MusicXML must come from the same MuseScore file with repeats removed. A pickup bar will put the cursor one partial bar off, since the MIDI import counts bars from tick 0. Zoom in the session screen only affects the score.
 - Loop mode: count-in bar, then the bar range, a one-bar gap, the range again, and so on until Esc. Each pass is scored on its own; the pass in progress when Esc is pressed counts only if something was played in it. Notes struck in the gap bar belong to no pass.
 - Timing: for each correct note, deviation from its expected time at the session BPM. "On time" is within ±60 ms, "close" within ±120 ms; bias is the signed mean (early or late). Reported overall and per bar; extra notes are charged to the bar they were played in.
 - Per-bar strip: green is ≥95% pitch with no extras, yellow ≥80%, red below, gray for bars with no notes in the selected tracks.
@@ -83,6 +90,6 @@ The app does not read sheet music. Get a MIDI file in this order:
 3. **Export MusicXML.** Book → Export Book. Produces a `.mxl` in Audiveris's output folder.
 4. **Fix misreads in MuseScore.** Open the `.mxl`. Press Space to play it back and listen for wrong notes. Check clef, key signature, and time signature first. Then look for measures with stray rests or extra notes; that is where OMR misread. Delete any non-piano staves. Expect 5–15 minutes per page.
 5. **Prep for export.** Two-staff piano part, right hand on top. Each staff becomes its own MIDI track, which is what the app uses for hand selection. Set a sensible tempo. Consider removing repeat signs so bar numbers in the app match the printed page.
-6. **Export.** File → Export → MIDI. Also save the `.mscz` so fixes never require redoing the OMR. Import the `.mid` into the app.
+6. **Export.** File → Export → MIDI, and again File → Export → MusicXML (compressed `.mxl`). Also save the `.mscz` so fixes never require redoing the OMR. Import the `.mid` into the app, then attach the `.mxl` to the piece to see the score with a moving cursor while you play.
 
 Input quality matters most: use the original PDF, not a phone photo. If scanning paper, 300 dpi minimum.

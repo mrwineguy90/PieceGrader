@@ -56,13 +56,27 @@ export function referenceNotesInRange(config: SessionConfig): ReferenceNote[] {
 
 interface ActiveSession {
   config: SessionConfig
-  recorder: NoteRecorder // origin = beat 1 of pass 1
-  originMs: number
+  recorder: NoteRecorder // raw performance.now() times; pass windows are cut out at scoring time
   msPerClick: number
   clicksPerBar: number
   passClicks: number // how long each pass records
   cycleClicks: number // pass plus the gap bar
   passes: Pass[]
+}
+
+// Where we are on the session timeline, in clicks since the metronome started.
+function timeline(session: ActiveSession, nowMs: number, firstClickMs: number) {
+  const { clicksPerBar, passClicks, cycleClicks } = session
+  const clicksElapsed = (nowMs - firstClickMs) / session.msPerClick
+  const sincePassOne = clicksElapsed - clicksPerBar
+  const passIndex = Math.max(0, Math.floor(sincePassOne / cycleClicks))
+  return {
+    clicksElapsed,
+    sincePassOne, // negative during the count-in
+    passIndex,
+    withinPass: sincePassOne - passIndex * cycleClicks, // beyond passClicks means the gap bar
+    completedPasses: Math.max(0, Math.floor((sincePassOne - passClicks) / cycleClicks) + 1),
+  }
 }
 
 export function useSession(midi: MidiInputState) {
@@ -80,11 +94,9 @@ export function useSession(midi: MidiInputState) {
     const passClicks = config.loop
       ? (config.barRange[1] - config.barRange[0] + 1) * clicksPerBar
       : lastNoteEndBeat / clickLengthInBeats(timeSignature) + 1
-    const originMs = metronome.beatTimeMs(clicksPerBar) // first click after the count-in bar
     active.current = {
       config,
-      recorder: new NoteRecorder(originMs),
-      originMs,
+      recorder: new NoteRecorder(),
       msPerClick: 60_000 / config.bpm,
       clicksPerBar,
       passClicks,
@@ -94,9 +106,14 @@ export function useSession(midi: MidiInputState) {
     setStatus({ phase: 'count-in', config, beatInBar: 1, pass: 1, lastScore: null })
   }
 
+  // Beat 1 of pass 1 on the performance.now() clock: the first click after the
+  // count-in bar. Asked for fresh each time because the metronome's clock
+  // anchor settles a few ticks after start (see metronome.ts).
+  const originMs = (session: ActiveSession) => metronome.beatTimeMs(session.clicksPerBar)
+
   const scorePass = (session: ActiveSession, passIndex: number, nowMs: number): Pass => {
     const { config } = session
-    const fromMs = passIndex * session.cycleClicks * session.msPerClick
+    const fromMs = originMs(session) + passIndex * session.cycleClicks * session.msPerClick
     const toMs = fromMs + session.passClicks * session.msPerClick
     // Shift the window back by the grace so an early first note is included,
     // then shift the times forward again so the pass still starts at 0.
@@ -129,12 +146,24 @@ export function useSession(midi: MidiInputState) {
     setStatus({ phase: 'idle' })
   }
 
+  // Current place in the piece in quarter notes, for the playhead on the
+  // session screen. Sits at the start of the range during the count-in and
+  // the gap bar; null when no session is running.
+  const positionBeat = (nowMs: number): number | null => {
+    const session = active.current
+    if (!session) return null
+    const { sincePassOne, withinPass } = timeline(session, nowMs, metronome.beatTimeMs(0))
+    const start = rangeStartBeat(session.config)
+    if (sincePassOne < 0 || withinPass >= session.passClicks) return start
+    return start + withinPass * clickLengthInBeats(session.config.piece.timeSignature)
+  }
+
   // Feed keyboard events into the session's recorder; ignore count-in noodling.
   useEffect(
     () =>
       midi.subscribe((event) => {
         const session = active.current
-        if (session && event.timeMs >= session.originMs - EARLY_GRACE_MS) session.recorder.push(event)
+        if (session && event.timeMs >= originMs(session) - EARLY_GRACE_MS) session.recorder.push(event)
       }),
     [midi.subscribe],
   )
@@ -145,19 +174,15 @@ export function useSession(midi: MidiInputState) {
     const timer = window.setInterval(() => {
       const session = active.current
       if (!session) return
-      const { config, clicksPerBar, passClicks, cycleClicks } = session
+      const { config, clicksPerBar, passClicks } = session
       const nowMs = performance.now()
-      const clicksElapsed = (nowMs - metronome.beatTimeMs(0)) / session.msPerClick
-      const sincePassOne = clicksElapsed - clicksPerBar
-      const completedPasses = Math.max(0, Math.floor((sincePassOne - passClicks) / cycleClicks) + 1)
+      const { clicksElapsed, sincePassOne, passIndex, withinPass, completedPasses } = timeline(session, nowMs, metronome.beatTimeMs(0))
       if (!config.loop && completedPasses > 0) {
         finish()
         return
       }
       while (session.passes.length < completedPasses) session.passes.push(scorePass(session, session.passes.length, nowMs))
 
-      const passIndex = Math.max(0, Math.floor(sincePassOne / cycleClicks))
-      const withinPass = sincePassOne - passIndex * cycleClicks
       const beatInBar = (((Math.floor(clicksElapsed) % clicksPerBar) + clicksPerBar) % clicksPerBar) + 1
       const lastScore = session.passes[session.passes.length - 1]?.score ?? null
       if (sincePassOne < 0) setStatus({ phase: 'count-in', config, beatInBar, pass: 1, lastScore })
@@ -179,5 +204,5 @@ export function useSession(midi: MidiInputState) {
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [running]) // finish/metronome are stable; only the running flag matters
 
-  return { status, start, finish, reset }
+  return { status, start, finish, reset, positionBeat }
 }

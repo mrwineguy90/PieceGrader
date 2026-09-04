@@ -19,10 +19,18 @@ export interface PlayedNote {
   velocity: number
 }
 
+// A MusicXML file (.musicxml or compressed .mxl) shown as notation during a
+// session. Stored as the raw file bytes in base64; .mxl is ~10× smaller.
+export interface PieceScore {
+  fileName: string
+  base64: string
+}
+
 export interface Piece {
   id: string
   title: string
   notes: ReferenceNote[]
+  score?: PieceScore // optional; the app grades from `notes`, this is only for display
   // Deviation from spec §3 (which stored beatsPerBar): the metronome clicks the
   // note the bottom number names, so 6/8 gets six eighth-note clicks per bar.
   timeSignature: [number, number] // e.g. [3, 4] or [6, 8]; default [4, 4]

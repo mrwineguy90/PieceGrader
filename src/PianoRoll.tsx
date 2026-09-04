@@ -1,8 +1,10 @@
 // Piano roll of a reference piece: time in beats along x, pitch along y,
 // bar lines with bar numbers along the top. With an overlay, the reference
-// turns gray and the scored performance is drawn on top. SVG so bars can be
-// clicked later (phase 4). Scrolls sideways inside its box.
+// turns gray and the scored performance is drawn on top. With a playhead,
+// a red line marks the current beat and the box scrolls to keep it in view.
+// Scrolls sideways inside its box.
 
+import { useEffect, useRef } from 'react'
 import type { Piece } from './types'
 import { barCount, beatsPerBar, clickLengthInBeats } from './pieces'
 import { ON_TIME_MS, type NoteResult } from './scoring'
@@ -34,10 +36,24 @@ interface Props {
   pixelsPerBeat: number
   overlay?: Overlay
   highlightBars?: [number, number] // bars outside this range are dimmed
+  playheadBeat?: number // current position in quarter notes, while a session runs
 }
 
-export default function PianoRoll({ piece, includedTracks, pixelsPerBeat, overlay, highlightBars }: Props) {
+const SCROLL_MARGIN_PX = 80 // the playhead flips the page this close to the right edge
+
+export default function PianoRoll({ piece, includedTracks, pixelsPerBeat, overlay, highlightBars, playheadBeat }: Props) {
   const bars = barCount(piece)
+  const scrollBox = useRef<HTMLDivElement>(null)
+
+  // Page-flip scrolling: the roll stays put while the playhead crosses it,
+  // then jumps when the line nears the right edge, so the eye can read ahead.
+  useEffect(() => {
+    const box = scrollBox.current
+    if (!box || playheadBeat === undefined) return
+    const x = LABEL_GUTTER + playheadBeat * pixelsPerBeat
+    const visibleRight = box.scrollLeft + box.clientWidth - SCROLL_MARGIN_PX
+    if (x > visibleRight || x < box.scrollLeft) box.scrollLeft = Math.max(0, x - SCROLL_MARGIN_PX)
+  }, [playheadBeat, pixelsPerBeat])
   const quartersPerBar = beatsPerBar(piece)
   const clickBeats = clickLengthInBeats(piece.timeSignature) // one line per metronome click
   const midis = piece.notes.map((note) => note.midi)
@@ -129,7 +145,7 @@ export default function PianoRoll({ piece, includedTracks, pixelsPerBeat, overla
     : []
 
   return (
-    <div className="overflow-x-auto rounded border border-gray-300 bg-white">
+    <div ref={scrollBox} className="overflow-x-auto rounded border border-gray-300 bg-white">
       <svg width={width} height={height} className="block">
         {octaveLines}
         {beatLines}
@@ -156,6 +172,9 @@ export default function PianoRoll({ piece, includedTracks, pixelsPerBeat, overla
             opacity={0.7}
           />
         ))}
+        {playheadBeat !== undefined && (
+          <line x1={xForBeat(playheadBeat)} x2={xForBeat(playheadBeat)} y1={0} y2={height} stroke="#ef4444" strokeWidth={2} />
+        )}
       </svg>
     </div>
   )

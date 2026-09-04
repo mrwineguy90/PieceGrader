@@ -73,8 +73,9 @@ function paint(canvas: HTMLCanvasElement, recorder: NoteRecorder, metronome: Met
 
   // Beat lines from the metronome (downbeats heavier)
   for (const beat of metronome.beats) {
-    if (beat.timeMs < leftEdgeMs || beat.timeMs > leftEdgeMs + windowMs) continue
-    const x = xForTime(beat.timeMs)
+    const beatMs = metronome.beatTimeMs(beat.index)
+    if (beatMs < leftEdgeMs || beatMs > leftEdgeMs + windowMs) continue
+    const x = xForTime(beatMs)
     context.strokeStyle = beat.isDownbeat ? '#4b5563' : '#d1d5db'
     context.lineWidth = beat.isDownbeat ? 1.5 : 1
     context.beginPath()

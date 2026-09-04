@@ -22,13 +22,18 @@ export default function App() {
 
   const changePieces = (next: Piece[]) => {
     setPieces(next)
-    savePieces(next)
+    try {
+      savePieces(next)
+    } catch {
+      // localStorage is capped around 5 MB; attached scores are the only thing big enough to hit it.
+      window.alert('Could not save: browser storage is full. Remove a score (use .mxl, it is much smaller) or a piece.')
+    }
   }
 
   const { status } = session
   let body
   if (status.phase === 'count-in' || status.phase === 'recording') {
-    body = <SessionScreen status={status} onStop={session.finish} />
+    body = <SessionScreen status={status} positionBeat={session.positionBeat} onStop={session.finish} />
   } else if (status.phase === 'done') {
     body = <ResultsScreen result={status.result} onPractice={session.start} onBack={session.reset} />
   } else if (screen === 'pieces') {

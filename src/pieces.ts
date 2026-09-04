@@ -111,6 +111,17 @@ export function bpmLabel(bpm: number, timeSignature: [number, number]): string {
   return `${NOTE_SYMBOLS[timeSignature[1]] ?? `1/${timeSignature[1]}`} = ${bpm}`
 }
 
+// Score files travel through localStorage as base64 (JSON can't hold bytes).
+export function encodeScoreFile(bytes: Uint8Array): string {
+  let binary = ''
+  for (const byte of bytes) binary += String.fromCharCode(byte)
+  return btoa(binary)
+}
+
+export function decodeScoreFile(base64: string): Uint8Array {
+  return Uint8Array.from(atob(base64), (char) => char.charCodeAt(0))
+}
+
 // Bars are 1-based, like a printed score.
 export function barOfBeat(beat: number, quartersPerBar: number): number {
   return Math.floor(beat / quartersPerBar) + 1
