@@ -1,6 +1,15 @@
 import { writeMidi, type MidiEvent } from 'midi-file'
 import { describe, expect, it } from 'vitest'
-import { barCount, barOfBeat, parseMidiFilePiece, splitAtMiddleC } from './pieces'
+import {
+  barCount,
+  barOfBeat,
+  beatsPerBar,
+  bpmLabel,
+  clickLengthInBeats,
+  parseMidiFilePiece,
+  quarterNoteBpm,
+  splitAtMiddleC,
+} from './pieces'
 
 const TICKS = 480
 
@@ -32,7 +41,7 @@ describe('parseMidiFilePiece', () => {
     const piece = parseMidiFilePiece(buildFile([conductorTrack, rightHand, leftHand]), 'Test')
 
     expect(piece.defaultBpm).toBe(100)
-    expect(piece.beatsPerBar).toBe(3)
+    expect(piece.timeSignature).toEqual([3, 4])
     expect(piece.trackNames).toEqual(['RH', 'Track 3']) // conductor track dropped
     expect(piece.notes).toEqual([
       { midi: 48, startBeat: 0, durationBeats: 3, track: 1 },
@@ -57,18 +66,25 @@ describe('parseMidiFilePiece', () => {
     expect(piece.notes.map((n) => n.midi)).toEqual([60])
   })
 
-  it('uses 6/8 as three quarter-note beats per bar', () => {
+  it('keeps 6/8 and converts the quarter-note tempo to eighth-note clicks', () => {
     const events: MidiEvent[] = [
+      { deltaTime: 0, type: 'setTempo', microsecondsPerBeat: 750_000 }, // quarter = 80
       { deltaTime: 0, type: 'timeSignature', numerator: 6, denominator: 8, metronome: 24, thirtyseconds: 8 },
       ...note(0, 60, TICKS),
     ]
-    expect(parseMidiFilePiece(buildFile([events], 0), 'Six eight').beatsPerBar).toBe(3)
+    const piece = parseMidiFilePiece(buildFile([events], 0), 'Six eight')
+    expect(piece.timeSignature).toEqual([6, 8])
+    expect(piece.defaultBpm).toBe(160) // eighth = 160
+    expect(beatsPerBar(piece)).toBe(3) // still three quarter notes per bar
+    expect(clickLengthInBeats(piece.timeSignature)).toBe(0.5)
+    expect(quarterNoteBpm(160, piece.timeSignature)).toBe(80)
+    expect(bpmLabel(160, piece.timeSignature)).toBe('♪ = 160')
   })
 
   it('falls back to 120 BPM and 4/4 when the file says nothing', () => {
     const piece = parseMidiFilePiece(buildFile([note(0, 60, TICKS)], 0), 'Bare')
     expect(piece.defaultBpm).toBe(120)
-    expect(piece.beatsPerBar).toBe(4)
+    expect(piece.timeSignature).toEqual([4, 4])
   })
 
   it('throws when there are no notes', () => {

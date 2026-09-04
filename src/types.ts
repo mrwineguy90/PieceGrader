@@ -23,8 +23,10 @@ export interface Piece {
   id: string
   title: string
   notes: ReferenceNote[]
-  beatsPerBar: number // from time signature; default 4
-  defaultBpm: number // from file tempo; user can override
+  // Deviation from spec §3 (which stored beatsPerBar): the metronome clicks the
+  // note the bottom number names, so 6/8 gets six eighth-note clicks per bar.
+  timeSignature: [number, number] // e.g. [3, 4] or [6, 8]; default [4, 4]
+  defaultBpm: number // clicks of that note per minute, from the file tempo; user can override
   trackNames: string[] // for hand selection
   source: 'midi-file' | 'recorded'
 }

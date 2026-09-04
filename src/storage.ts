@@ -20,10 +20,18 @@ export function saveMidiInputId(id: string): void {
 export function loadPieces(): Piece[] {
   try {
     const parsed: unknown = JSON.parse(localStorage.getItem(PIECES_KEY) ?? '[]')
-    return Array.isArray(parsed) ? (parsed as Piece[]) : []
+    return Array.isArray(parsed) ? parsed.map(migratePiece) : []
   } catch {
     return []
   }
+}
+
+// Pieces saved before the time signature existed stored beatsPerBar (quarter
+// notes per bar); read them as n/4 so nothing needs re-importing.
+function migratePiece(stored: Piece & { beatsPerBar?: number }): Piece {
+  if (stored.timeSignature) return stored
+  const { beatsPerBar, ...rest } = stored
+  return { ...rest, timeSignature: [beatsPerBar ?? 4, 4] }
 }
 
 export function savePieces(pieces: Piece[]): void {

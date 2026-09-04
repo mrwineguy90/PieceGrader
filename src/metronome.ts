@@ -40,6 +40,14 @@ export class Metronome {
   private beatsPerBar = 4
   private nextBeatAudioTime = 0
   private nextBeatIndex = 0
+  private firstBeatMs = 0
+
+  // When beat `index` falls, on the performance.now() clock. Beats are evenly
+  // spaced from the first, so this is known before the beat is scheduled; the
+  // session uses it to fix "time 0" on the first beat after the count-in.
+  beatTimeMs(index: number): number {
+    return this.firstBeatMs + (index * 60_000) / this.bpm
+  }
 
   start(bpm: number, beatsPerBar: number): void {
     this.stop()
@@ -51,6 +59,7 @@ export class Metronome {
     this.nextBeatIndex = 0
     this.nextBeatAudioTime = this.context.currentTime + FIRST_BEAT_DELAY_SEC
     this.anchor = this.captureAnchor()
+    this.firstBeatMs = audioTimeToPerformanceMs(this.anchor, this.nextBeatAudioTime)
     this.running = true
     this.timer = window.setInterval(() => this.scheduleDueBeats(), TICK_MS)
     this.scheduleDueBeats()

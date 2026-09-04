@@ -1,19 +1,27 @@
-// The piece library: import .mid files, pick a piece, name its tracks and
-// choose which are included, see it as a piano roll.
+// The piece library and session setup: import .mid files, pick a piece, name
+// its tracks and choose which are included, set the BPM, see the piano roll,
+// start practising.
 
 import { useState } from 'react'
+import { TimeSignatureInput } from './MidiCheck'
 import PianoRoll from './PianoRoll'
-import { barCount, parseMidiFilePiece, splitAtMiddleC } from './pieces'
+import { barCount, bpmLabel, clickLengthInBeats, parseMidiFilePiece, quarterNoteBpm, splitAtMiddleC } from './pieces'
 import type { Piece } from './types'
+import type { SessionConfig } from './useSession'
+
+const MIN_BPM = 30
+const MAX_BPM = 240
 
 interface Props {
   pieces: Piece[]
   onChangePieces: (pieces: Piece[]) => void
+  onStartSession: (config: SessionConfig) => void
 }
 
-export default function PieceLibrary({ pieces, onChangePieces }: Props) {
+export default function PieceLibrary({ pieces, onChangePieces, onStartSession }: Props) {
   const [selectedId, setSelectedId] = useState<string | null>(pieces[0]?.id ?? null)
-  const [includedTracks, setIncludedTracks] = useState<number[]>([])
+  const [includedTracks, setIncludedTracks] = useState<number[]>(() => allTracks(pieces[0]))
+  const [bpm, setBpm] = useState(pieces[0]?.defaultBpm ?? 100)
   const [pixelsPerBeat, setPixelsPerBeat] = useState(30)
   const [importError, setImportError] = useState<string | null>(null)
 
@@ -21,7 +29,8 @@ export default function PieceLibrary({ pieces, onChangePieces }: Props) {
 
   const selectPiece = (piece: Piece) => {
     setSelectedId(piece.id)
-    setIncludedTracks(piece.trackNames.map((_, index) => index))
+    setIncludedTracks(allTracks(piece))
+    setBpm(piece.defaultBpm)
   }
 
   const updatePiece = (updated: Piece) => {
@@ -52,6 +61,16 @@ export default function PieceLibrary({ pieces, onChangePieces }: Props) {
     )
   }
 
+  const setBpmClamped = (next: number) => setBpm(Math.min(MAX_BPM, Math.max(MIN_BPM, Math.round(next))))
+
+  // BPM counts the bottom number's note, so re-express both tempos when the
+  // signature changes: quarter = 80 stays quarter = 80 whether shown as ♩ = 80 or ♪ = 160.
+  const changeTimeSignature = (piece: Piece, next: [number, number]) => {
+    const toNewClicks = (bpm: number) => Math.round(quarterNoteBpm(bpm, piece.timeSignature) / clickLengthInBeats(next))
+    updatePiece({ ...piece, timeSignature: next, defaultBpm: toNewClicks(piece.defaultBpm) })
+    setBpm(toNewClicks(bpm))
+  }
+
   return (
     <div className="mt-6 flex gap-6">
       <aside className="w-64 shrink-0">
@@ -78,7 +97,8 @@ export default function PieceLibrary({ pieces, onChangePieces }: Props) {
               >
                 {piece.title}
                 <span className="block text-xs text-gray-500">
-                  {barCount(piece)} bars · {piece.defaultBpm} BPM · {piece.trackNames.length}{' '}
+                  {barCount(piece)} bars · {piece.timeSignature.join('/')} · {bpmLabel(piece.defaultBpm, piece.timeSignature)} ·{' '}
+                  {piece.trackNames.length}{' '}
                   {piece.trackNames.length === 1 ? 'track' : 'tracks'}
                 </span>
               </button>
@@ -98,6 +118,10 @@ export default function PieceLibrary({ pieces, onChangePieces }: Props) {
           </div>
 
           <div className="mt-3 flex flex-wrap items-center gap-4">
+            <label className="flex items-center gap-2 text-sm">
+              Time signature{' '}
+              <TimeSignatureInput value={selected.timeSignature} onChange={(next) => changeTimeSignature(selected, next)} />
+            </label>
             {selected.trackNames.map((name, track) => (
               <label key={track} className="flex items-center gap-2 text-sm">
                 <input type="checkbox" checked={includedTracks.includes(track)} onChange={() => toggleTrack(track)} />
@@ -125,6 +149,28 @@ export default function PieceLibrary({ pieces, onChangePieces }: Props) {
             )}
           </div>
 
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <button className={buttonClass} onClick={() => setBpmClamped(bpm - 5)}>
+              −5
+            </button>
+            <span className="w-28 text-center text-xl tabular-nums">{bpmLabel(bpm, selected.timeSignature)}</span>
+            <button className={buttonClass} onClick={() => setBpmClamped(bpm + 5)}>
+              +5
+            </button>
+            {[50, 75, 100].map((percent) => (
+              <button key={percent} className={`${buttonClass} text-sm`} onClick={() => setBpmClamped((selected.defaultBpm * percent) / 100)}>
+                {percent}%
+              </button>
+            ))}
+            <button
+              className={`${buttonClass} ml-6 bg-green-100 font-medium disabled:opacity-40`}
+              disabled={includedTracks.length === 0}
+              onClick={() => onStartSession({ piece: selected, tracks: includedTracks, bpm, barRange: [1, barCount(selected)] })}
+            >
+              Practice
+            </button>
+          </div>
+
           <label className="mt-3 flex items-center gap-2 text-sm text-gray-600">
             Zoom
             <input type="range" min={8} max={80} value={pixelsPerBeat} onChange={(e) => setPixelsPerBeat(Number(e.target.value))} />
@@ -136,6 +182,10 @@ export default function PieceLibrary({ pieces, onChangePieces }: Props) {
       )}
     </div>
   )
+}
+
+function allTracks(piece: Piece | undefined): number[] {
+  return piece ? piece.trackNames.map((_, index) => index) : []
 }
 
 const buttonClass = 'rounded border border-gray-300 px-3 py-1 hover:bg-gray-100'

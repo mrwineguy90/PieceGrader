@@ -1,11 +1,12 @@
 // Web MIDI access: asks permission, lists inputs, remembers the chosen one,
 // and feeds its messages into a NoteRecorder.
 
-import { useEffect, useState } from 'react'
-import { NoteRecorder, parseMidiMessage } from './midi'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { NoteRecorder, parseMidiMessage, type MidiEvent } from './midi'
 import { loadMidiInputId, saveMidiInputId } from './storage'
 
 export type MidiStatus = 'unsupported' | 'requesting' | 'denied' | 'ready'
+type MidiListener = (event: MidiEvent) => void
 
 export interface MidiInputState {
   status: MidiStatus
@@ -13,7 +14,8 @@ export interface MidiInputState {
   selectedId: string | null
   selectInput: (id: string) => void
   lastNoteAtMs: number | null // performance.now() of the most recent note-on
-  recorder: NoteRecorder
+  recorder: NoteRecorder // everything played, for the live roll on the keyboard check screen
+  subscribe: (listener: MidiListener) => () => void // for a session's own recorder; returns unsubscribe
 }
 
 export function useMidiInput(): MidiInputState {
@@ -25,6 +27,14 @@ export function useMidiInput(): MidiInputState {
   // One recorder for the life of the hook; the piano roll reads it directly
   // every frame rather than through React state, since notes arrive often.
   const [recorder] = useState(() => new NoteRecorder())
+  const listeners = useRef(new Set<MidiListener>())
+
+  const subscribe = useCallback((listener: MidiListener) => {
+    listeners.current.add(listener)
+    return () => {
+      listeners.current.delete(listener)
+    }
+  }, [])
 
   useEffect(() => {
     if (!navigator.requestMIDIAccess) {
@@ -64,6 +74,7 @@ export function useMidiInput(): MidiInputState {
       const event = parseMidiMessage(message.data, message.timeStamp)
       if (!event) return
       recorder.push(event)
+      for (const listener of listeners.current) listener(event)
       if (event.kind === 'noteon') setLastNoteAtMs(event.timeMs)
     }
     return () => {
@@ -76,5 +87,5 @@ export function useMidiInput(): MidiInputState {
     saveMidiInputId(id)
   }
 
-  return { status, inputs, selectedId: activeId, selectInput, lastNoteAtMs, recorder }
+  return { status, inputs, selectedId: activeId, selectInput, lastNoteAtMs, recorder, subscribe }
 }

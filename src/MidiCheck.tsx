@@ -5,17 +5,18 @@
 import { useEffect, useState } from 'react'
 import LivePianoRoll from './LivePianoRoll'
 import { Metronome } from './metronome'
+import { bpmLabel } from './pieces'
 import type { MidiInputState } from './useMidiInput'
 
 const MIN_BPM = 30
 const MAX_BPM = 240
-const BEATS_PER_BAR_OPTIONS = [2, 3, 4, 6]
 const RECENT_NOTE_MS = 3000 // how long the "receiving" light stays green after a note
 
 export default function MidiCheck({ midi }: { midi: MidiInputState }) {
   const [metronome] = useState(() => new Metronome())
   const [bpm, setBpm] = useState(80)
-  const [beatsPerBar, setBeatsPerBar] = useState(4)
+  const [timeSignature, setTimeSignature] = useState<[number, number]>([4, 4])
+  const [clicksPerBar] = timeSignature
   const [metronomeRunning, setMetronomeRunning] = useState(false)
   // Coarse clock for the text indicators; the piano roll has its own frame loop.
   const [nowMs, setNowMs] = useState(() => performance.now())
@@ -29,19 +30,19 @@ export default function MidiCheck({ midi }: { midi: MidiInputState }) {
 
   const toggleMetronome = () => {
     if (metronomeRunning) metronome.stop()
-    else metronome.start(bpm, beatsPerBar)
+    else metronome.start(bpm, clicksPerBar)
     setMetronomeRunning(!metronomeRunning)
   }
 
   const changeBpm = (delta: number) => {
     const next = Math.min(MAX_BPM, Math.max(MIN_BPM, bpm + delta))
     setBpm(next)
-    if (metronomeRunning) metronome.start(next, beatsPerBar)
+    if (metronomeRunning) metronome.start(next, clicksPerBar)
   }
 
-  const changeBeatsPerBar = (next: number) => {
-    setBeatsPerBar(next)
-    if (metronomeRunning) metronome.start(bpm, next)
+  const changeTimeSignature = (next: [number, number]) => {
+    setTimeSignature(next)
+    if (metronomeRunning) metronome.start(bpm, next[0])
   }
 
   const beat = metronomeRunning ? metronome.currentBeat(nowMs) : null
@@ -72,23 +73,12 @@ export default function MidiCheck({ midi }: { midi: MidiInputState }) {
           <button className={buttonClass} onClick={() => changeBpm(-5)}>
             −5
           </button>
-          <span className="w-24 text-center text-xl tabular-nums">{bpm} BPM</span>
+          <span className="w-24 text-center text-xl tabular-nums">{bpmLabel(bpm, timeSignature)}</span>
           <button className={buttonClass} onClick={() => changeBpm(5)}>
             +5
           </button>
-          <label className="ml-4 text-sm">
-            Beats per bar{' '}
-            <select
-              className="rounded border border-gray-300 px-2 py-1"
-              value={beatsPerBar}
-              onChange={(e) => changeBeatsPerBar(Number(e.target.value))}
-            >
-              {BEATS_PER_BAR_OPTIONS.map((n) => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
-              ))}
-            </select>
+          <label className="ml-4 flex items-center gap-2 text-sm">
+            Time signature <TimeSignatureInput value={timeSignature} onChange={changeTimeSignature} />
           </label>
           <button
             className={`${buttonClass} ml-4 ${metronomeRunning ? 'bg-red-100' : 'bg-green-100'}`}
@@ -97,13 +87,13 @@ export default function MidiCheck({ midi }: { midi: MidiInputState }) {
             {metronomeRunning ? 'Stop' : 'Start'}
           </button>
           <div className="ml-4 flex items-center gap-2">
-            {Array.from({ length: beatsPerBar }, (_, i) => {
-              const active = beat !== null && beat.index % beatsPerBar === i
+            {Array.from({ length: clicksPerBar }, (_, i) => {
+              const active = beat !== null && beat.index % clicksPerBar === i
               const color = !active ? 'bg-gray-200' : i === 0 ? 'bg-red-500' : 'bg-gray-800'
               return <span key={i} className={`inline-block h-4 w-4 rounded-full ${color}`} />
             })}
             <span className="ml-2 w-16 text-sm tabular-nums text-gray-600">
-              {beat ? `Bar ${Math.floor(beat.index / beatsPerBar) + 1}` : ''}
+              {beat ? `Bar ${Math.floor(beat.index / clicksPerBar) + 1}` : ''}
             </span>
           </div>
         </div>
@@ -128,6 +118,37 @@ export default function MidiCheck({ midi }: { midi: MidiInputState }) {
 }
 
 const buttonClass = 'rounded border border-gray-300 px-3 py-1 hover:bg-gray-100'
+
+const MAX_TOP_NUMBER = 32
+const BOTTOM_NUMBERS = [2, 4, 8, 16]
+
+// Top number typed, bottom number picked. Also used by the piece library.
+export function TimeSignatureInput({ value, onChange }: { value: [number, number]; onChange: (next: [number, number]) => void }) {
+  const [top, bottom] = value
+  return (
+    <span className="flex items-center gap-1">
+      <input
+        type="number"
+        min={1}
+        max={MAX_TOP_NUMBER}
+        className="w-14 rounded border border-gray-300 px-2 py-1"
+        value={top}
+        onChange={(e) => {
+          const next = Math.round(Number(e.target.value))
+          if (next >= 1 && next <= MAX_TOP_NUMBER) onChange([next, bottom])
+        }}
+      />
+      /
+      <select className="rounded border border-gray-300 px-2 py-1" value={bottom} onChange={(e) => onChange([top, Number(e.target.value)])}>
+        {BOTTOM_NUMBERS.map((n) => (
+          <option key={n} value={n}>
+            {n}
+          </option>
+        ))}
+      </select>
+    </span>
+  )
+}
 
 function MidiStatusLine({ midi, nowMs }: { midi: MidiInputState; nowMs: number }) {
   if (midi.status === 'unsupported') return <p className="text-sm text-red-600">Web MIDI is not available. Use Chrome.</p>
