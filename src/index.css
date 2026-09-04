@@ -1,0 +1,11 @@
+@import "tailwindcss";
+
+/* Desktop Chrome app. Light theme only. No text selection so clicking
+   controls during a session never highlights the page. */
+html,
+body {
+  height: 100%;
+  background-color: #ffffff;
+  -webkit-user-select: none;
+  user-select: none;
+}
