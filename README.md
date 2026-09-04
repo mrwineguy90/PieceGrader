@@ -11,7 +11,7 @@ npm run build    # type-check + production build to dist/
 
 ## Status
 
-Phase 3 of 5 (Session and pitch scoring). Pick a piece, tracks and BPM, press Practice: one bar of count-in, play, and get pitch results on a piano roll. Timing colors, bar ranges and loop mode come in phase 4.
+Phase 4 of 5 (Timing and drilling). Pick a piece, tracks, bar range and BPM, press Practice: one bar of count-in, play, and get pitch and timing results on a piano roll with a per-bar strip. Loop mode repeats the range with a one-bar gap and grades each pass. Phase 5 adds history, record-a-reference and deploy.
 
 ## Deploy (Cloudflare Pages)
 
@@ -34,12 +34,12 @@ In Chrome: open the Pages URL → address bar install icon → **Install**. Web 
 | `src/index.css` | Tailwind import; light theme only; no text selection |
 | `src/App.tsx` | Tab shell (Pieces, Keyboard check); owns the MIDI connection, the piece list and the session; shows the session or results screen while one is active |
 | `src/MidiCheck.tsx` | Keyboard check screen: input picker and status, metronome controls with beat indicator, live piano roll |
-| `src/PieceLibrary.tsx` | Import `.mid`, list pieces, rename and toggle tracks, split hands at middle C, BPM controls, zoomable reference roll, Practice button, delete |
-| `src/PianoRoll.tsx` | SVG piano roll of a piece in beats: bar lines and numbers, octave lines, notes colored by track; optional overlay of scored played notes |
-| `src/useSession.ts` | A practice session: count-in, recording from beat 1 into a `NoteRecorder`, bar/beat status, auto-stop one beat after the last note or on Esc, then scoring |
-| `src/SessionScreen.tsx` | While playing: piece line, big bar number, beat dots, Stop button |
-| `src/ResultsScreen.tsx` | Pitch accuracy headline, correct/wrong/missed/extra counts, piano roll with the performance overlaid |
-| `src/scoring.ts` | Chord grouping, Needleman–Wunsch chord alignment, note matching by pitch, pitch metrics and per-note deviations |
+| `src/PieceLibrary.tsx` | Import `.mid`, list pieces, rename and toggle tracks, time signature, split hands at middle C, BPM, bar range, loop toggle, zoomable reference roll, Practice button, delete |
+| `src/PianoRoll.tsx` | SVG piano roll of a piece in beats: bar lines and numbers, octave lines, notes colored by track; optional overlay of scored played notes (green/yellow/red/hollow); dims bars outside a range |
+| `src/useSession.ts` | A practice session: count-in, recording into a `NoteRecorder`, bar/beat status, passes (one, or repeated with a one-bar gap in loop mode) each scored, auto-stop or Esc |
+| `src/SessionScreen.tsx` | While playing: piece line, big bar number, beat dots, pass number and last pass result in loop mode, Stop button |
+| `src/ResultsScreen.tsx` | Pass picker, pitch and timing headlines, per-bar strip (click to drill), piano roll with the performance overlaid, per-bar table |
+| `src/scoring.ts` | Chord grouping, Needleman–Wunsch chord alignment, note matching by pitch, pitch and timing summaries overall and per bar |
 | `src/pieces.ts` | `.mid` → `Piece` via `midi-file` (tempo, time signature, track names, percussion ignored); `splitAtMiddleC`; bar, click-length and BPM-conversion helpers |
 | `src/types.ts` | Data model from spec §3: `ReferenceNote`, `PlayedNote`, `Piece` |
 | `src/midi.ts` | `parseMidiMessage` (raw bytes → note on/off/sustain events) and `NoteRecorder` (pairs on/off into `PlayedNote`s) |
@@ -63,6 +63,9 @@ In Chrome: open the Pages URL → address bar install icon → **Install**. Web 
 - Format 1 files usually start with a notes-free conductor track; tracks with no notes are dropped, so track numbers match the list shown.
 - A one-track file offers "Split hands at middle C": C4 and above go to Right hand, the rest to Left hand.
 - Session: one full bar of count-in, then time 0 is beat 1 of the first selected bar. Notes struck up to 150 ms before that still count; anything earlier is ignored as count-in noodling. Recording stops one click after the last reference note ends, or on Esc.
+- Loop mode: count-in bar, then the bar range, a one-bar gap, the range again, and so on until Esc. Each pass is scored on its own; the pass in progress when Esc is pressed counts only if something was played in it. Notes struck in the gap bar belong to no pass.
+- Timing: for each correct note, deviation from its expected time at the session BPM. "On time" is within ±60 ms, "close" within ±120 ms; bias is the signed mean (early or late). Reported overall and per bar; extra notes are charged to the bar they were played in.
+- Per-bar strip: green is ≥95% pitch with no extras, yellow ≥80%, red below, gray for bars with no notes in the selected tracks.
 - Scoring: reference notes on the same beat form a chord; played onsets within 40 ms of a chord's first note join it. Chord sequences are aligned with Needleman–Wunsch (gap cost 1, mismatch cost 1 minus the pitch-set overlap, ties prefer matching). Inside an aligned pair, equal pitches are correct, leftover pairs are wrong notes, remaining reference notes are missed and remaining played notes are extra. Pitch accuracy is correct ÷ reference notes in range.
 
 ## Getting a `.mid` for a piece (one-time prep, outside the app)

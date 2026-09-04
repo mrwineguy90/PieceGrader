@@ -30,7 +30,7 @@ export default function App() {
   if (status.phase === 'count-in' || status.phase === 'recording') {
     body = <SessionScreen status={status} onStop={session.finish} />
   } else if (status.phase === 'done') {
-    body = <ResultsScreen result={status.result} onPracticeAgain={() => session.start(status.result.config)} onBack={session.reset} />
+    body = <ResultsScreen result={status.result} onPractice={session.start} onBack={session.reset} />
   } else if (screen === 'pieces') {
     body = <PieceLibrary pieces={pieces} onChangePieces={changePieces} onStartSession={session.start} />
   } else {

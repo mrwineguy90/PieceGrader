@@ -5,7 +5,7 @@
 
 import type { Piece } from './types'
 import { barCount, beatsPerBar, clickLengthInBeats } from './pieces'
-import type { NoteResult } from './scoring'
+import { ON_TIME_MS, type NoteResult } from './scoring'
 
 const ROW_HEIGHT = 8
 const HEADER_HEIGHT = 18
@@ -14,6 +14,7 @@ const PITCH_PADDING = 2 // rows of space above and below the piece's range
 const TRACK_COLORS = ['#3b82f6', '#f59e0b', '#8b5cf6', '#10b981']
 const EXCLUDED_COLOR = '#e5e7eb'
 const REFERENCE_COLOR = '#9ca3af' // reference under an overlay
+const OFF_TIME_COLOR = '#eab308' // correct pitch, more than ON_TIME_MS off
 const RESULT_COLORS: Record<NoteResult['kind'], string> = {
   correct: '#22c55e',
   wrong: '#ef4444',
@@ -32,9 +33,10 @@ interface Props {
   includedTracks: number[]
   pixelsPerBeat: number
   overlay?: Overlay
+  highlightBars?: [number, number] // bars outside this range are dimmed
 }
 
-export default function PianoRoll({ piece, includedTracks, pixelsPerBeat, overlay }: Props) {
+export default function PianoRoll({ piece, includedTracks, pixelsPerBeat, overlay, highlightBars }: Props) {
   const bars = barCount(piece)
   const quartersPerBar = beatsPerBar(piece)
   const clickBeats = clickLengthInBeats(piece.timeSignature) // one line per metronome click
@@ -103,6 +105,7 @@ export default function PianoRoll({ piece, includedTracks, pixelsPerBeat, overla
     }
     const note = result.played!
     const startBeat = overlay!.startBeat + note.startMs / msPerBeat
+    const offTime = result.kind === 'correct' && Math.abs(result.deviationMs ?? 0) > ON_TIME_MS
     return (
       <rect
         key={index}
@@ -111,11 +114,19 @@ export default function PianoRoll({ piece, includedTracks, pixelsPerBeat, overla
         width={noteWidth(note.durationMs / msPerBeat)}
         height={ROW_HEIGHT - 2}
         rx={1}
-        fill={RESULT_COLORS[result.kind]}
+        fill={offTime ? OFF_TIME_COLOR : RESULT_COLORS[result.kind]}
         opacity={result.kind === 'extra' ? 0.6 : 0.9}
       />
     )
   })
+
+  // Dim everything outside the selected bar range.
+  const dimmed = highlightBars
+    ? [
+        [0, highlightBars[0] - 1],
+        [highlightBars[1], bars],
+      ].filter(([from, to]) => to > from)
+    : []
 
   return (
     <div className="overflow-x-auto rounded border border-gray-300 bg-white">
@@ -134,6 +145,17 @@ export default function PianoRoll({ piece, includedTracks, pixelsPerBeat, overla
           />
         ))}
         {playedRects}
+        {dimmed.map(([fromBar, toBar]) => (
+          <rect
+            key={fromBar}
+            x={xForBeat(fromBar * quartersPerBar)}
+            y={HEADER_HEIGHT}
+            width={(toBar - fromBar) * quartersPerBar * pixelsPerBeat}
+            height={height - HEADER_HEIGHT}
+            fill="#ffffff"
+            opacity={0.7}
+          />
+        ))}
       </svg>
     </div>
   )

@@ -1,5 +1,6 @@
 // What's on screen while playing: bar counter and beat dots, nothing else
-// that pulls the eye off the sheet music (spec §5).
+// that pulls the eye off the sheet music (spec §5). In loop mode, one line
+// with the previous pass's result.
 
 import { bpmLabel } from './pieces'
 import type { SessionStatus } from './useSession'
@@ -10,7 +11,7 @@ interface Props {
 }
 
 export default function SessionScreen({ status, onStop }: Props) {
-  const { config } = status
+  const { config, lastScore } = status
   const [clicksPerBar] = config.piece.timeSignature
   const trackNames = config.tracks.map((track) => config.piece.trackNames[track]).join(', ')
 
@@ -19,6 +20,7 @@ export default function SessionScreen({ status, onStop }: Props) {
       <p className="text-gray-500">
         {config.piece.title} · {config.piece.timeSignature.join('/')} · {bpmLabel(config.bpm, config.piece.timeSignature)} · {trackNames} ·
         bars {config.barRange[0]}–{config.barRange[1]}
+        {config.loop && ' · loop'}
       </p>
 
       <div className="text-8xl font-semibold tabular-nums">
@@ -32,6 +34,13 @@ export default function SessionScreen({ status, onStop }: Props) {
           return <span key={i} className={`inline-block h-8 w-8 rounded-full ${color}`} />
         })}
       </div>
+
+      {config.loop && (
+        <p className="text-lg tabular-nums text-gray-600">
+          Pass {status.pass}
+          {lastScore && ` · last pass: ${Math.round(lastScore.pitchAccuracy * 100)}% pitch, ${Math.round(lastScore.timing.onTime * 100)}% on time`}
+        </p>
+      )}
 
       <button className="rounded border border-gray-300 px-4 py-2 hover:bg-gray-100" onClick={onStop}>
         Stop (Esc)

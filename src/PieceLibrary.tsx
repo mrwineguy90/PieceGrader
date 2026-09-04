@@ -22,6 +22,8 @@ export default function PieceLibrary({ pieces, onChangePieces, onStartSession }:
   const [selectedId, setSelectedId] = useState<string | null>(pieces[0]?.id ?? null)
   const [includedTracks, setIncludedTracks] = useState<number[]>(() => allTracks(pieces[0]))
   const [bpm, setBpm] = useState(pieces[0]?.defaultBpm ?? 100)
+  const [barRange, setBarRange] = useState<[number, number]>(() => wholePiece(pieces[0]))
+  const [loop, setLoop] = useState(false)
   const [pixelsPerBeat, setPixelsPerBeat] = useState(30)
   const [importError, setImportError] = useState<string | null>(null)
 
@@ -31,6 +33,15 @@ export default function PieceLibrary({ pieces, onChangePieces, onStartSession }:
     setSelectedId(piece.id)
     setIncludedTracks(allTracks(piece))
     setBpm(piece.defaultBpm)
+    setBarRange(wholePiece(piece))
+  }
+
+  // Keep 1 ≤ from ≤ to ≤ last bar while the user types.
+  const changeBarRange = (piece: Piece, from: number, to: number) => {
+    const last = barCount(piece)
+    const clampedFrom = Math.min(last, Math.max(1, from || 1))
+    const clampedTo = Math.min(last, Math.max(clampedFrom, to || last))
+    setBarRange([clampedFrom, clampedTo])
   }
 
   const updatePiece = (updated: Piece) => {
@@ -162,10 +173,38 @@ export default function PieceLibrary({ pieces, onChangePieces, onStartSession }:
                 {percent}%
               </button>
             ))}
+          </div>
+
+          <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
+            Bars
+            <input
+              type="number"
+              min={1}
+              max={barCount(selected)}
+              className="w-16 rounded border border-gray-300 px-2 py-1"
+              value={barRange[0]}
+              onChange={(e) => changeBarRange(selected, Number(e.target.value), barRange[1])}
+            />
+            to
+            <input
+              type="number"
+              min={1}
+              max={barCount(selected)}
+              className="w-16 rounded border border-gray-300 px-2 py-1"
+              value={barRange[1]}
+              onChange={(e) => changeBarRange(selected, barRange[0], Number(e.target.value))}
+            />
+            <button className={buttonClass} onClick={() => setBarRange(wholePiece(selected))}>
+              All {barCount(selected)}
+            </button>
+            <label className="ml-4 flex items-center gap-2">
+              <input type="checkbox" checked={loop} onChange={(e) => setLoop(e.target.checked)} />
+              Loop (repeat with a one-bar gap, each pass graded)
+            </label>
             <button
               className={`${buttonClass} ml-6 bg-green-100 font-medium disabled:opacity-40`}
               disabled={includedTracks.length === 0}
-              onClick={() => onStartSession({ piece: selected, tracks: includedTracks, bpm, barRange: [1, barCount(selected)] })}
+              onClick={() => onStartSession({ piece: selected, tracks: includedTracks, bpm, barRange, loop })}
             >
               Practice
             </button>
@@ -176,7 +215,7 @@ export default function PieceLibrary({ pieces, onChangePieces, onStartSession }:
             <input type="range" min={8} max={80} value={pixelsPerBeat} onChange={(e) => setPixelsPerBeat(Number(e.target.value))} />
           </label>
           <div className="mt-2">
-            <PianoRoll piece={selected} includedTracks={includedTracks} pixelsPerBeat={pixelsPerBeat} />
+            <PianoRoll piece={selected} includedTracks={includedTracks} pixelsPerBeat={pixelsPerBeat} highlightBars={barRange} />
           </div>
         </div>
       )}
@@ -186,6 +225,10 @@ export default function PieceLibrary({ pieces, onChangePieces, onStartSession }:
 
 function allTracks(piece: Piece | undefined): number[] {
   return piece ? piece.trackNames.map((_, index) => index) : []
+}
+
+function wholePiece(piece: Piece | undefined): [number, number] {
+  return [1, piece ? barCount(piece) : 1]
 }
 
 const buttonClass = 'rounded border border-gray-300 px-3 py-1 hover:bg-gray-100'

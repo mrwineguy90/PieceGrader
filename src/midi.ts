@@ -72,6 +72,21 @@ export class NoteRecorder {
     for (const open of this.openNotes.values()) this.close(open, timeMs - this.originMs)
   }
 
+  // Notes starting inside [fromMs, toMs) (origin-relative), re-based so fromMs
+  // is 0. Keys still held are included, cut off at nowMs, so one loop pass can
+  // be scored while the next is already being played.
+  notesStartingBetween(fromMs: number, toMs: number, nowMs: number): PlayedNote[] {
+    const held = this.activeNotes().map((open) => ({
+      midi: open.midi,
+      startMs: open.startMs,
+      durationMs: Math.max(0, nowMs - this.originMs - open.startMs),
+      velocity: open.velocity,
+    }))
+    return [...this.notes, ...held]
+      .filter((note) => note.startMs >= fromMs && note.startMs < toMs)
+      .map((note) => ({ ...note, startMs: note.startMs - fromMs }))
+  }
+
   clear(): void {
     this.notes = []
     this.openNotes.clear()

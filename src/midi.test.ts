@@ -62,6 +62,20 @@ describe('NoteRecorder', () => {
     expect(recorder.notes.map((n) => n.durationMs)).toEqual([500, 490])
   })
 
+  it('notesStartingBetween() slices a window, re-bases it, and includes held notes', () => {
+    const recorder = new NoteRecorder(1000)
+    recorder.push({ kind: 'noteon', midi: 60, velocity: 80, timeMs: 1100 })
+    recorder.push({ kind: 'noteoff', midi: 60, timeMs: 1300 })
+    recorder.push({ kind: 'noteon', midi: 62, velocity: 80, timeMs: 2100 })
+    recorder.push({ kind: 'noteoff', midi: 62, timeMs: 2200 })
+    recorder.push({ kind: 'noteon', midi: 64, velocity: 80, timeMs: 2500 }) // still held
+    const secondPass = recorder.notesStartingBetween(1000, 2000, 2800)
+    expect(secondPass).toEqual([
+      { midi: 62, startMs: 100, durationMs: 100, velocity: 80 },
+      { midi: 64, startMs: 500, durationMs: 300, velocity: 80 },
+    ])
+  })
+
   it('tracks the sustain pedal without creating notes', () => {
     const recorder = new NoteRecorder()
     recorder.push({ kind: 'sustain', down: true, timeMs: 0 })

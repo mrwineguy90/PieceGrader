@@ -1,10 +1,10 @@
-// Spec §6 alignment checklist.
+// Spec §6 alignment checklist, plus timing and per-bar summaries.
 import { describe, expect, it } from 'vitest'
-import { alignChordSequences, groupPlayedChords, groupReferenceChords, scorePerformance } from './scoring'
+import { alignChordSequences, groupPlayedChords, groupReferenceChords, scorePerformance, type ScoringContext } from './scoring'
 import type { PlayedNote, ReferenceNote } from './types'
 
-const BPM = 120
-const MS_PER_BEAT = 500
+const MS_PER_BEAT = 500 // 120 BPM
+const context: ScoringContext = { quarterBpm: 120, rangeStartBeat: 0, quartersPerBar: 4, barRange: [1, 2] }
 
 function ref(midi: number, startBeat: number, durationBeats = 1): ReferenceNote {
   return { midi, startBeat, durationBeats, track: 0 }
@@ -36,7 +36,7 @@ function play(notes: ReferenceNote[], shiftMs = 0, shiftBeats = 0): PlayedNote[]
 }
 
 function counts(played: PlayedNote[]) {
-  const { correct, wrong, missed, extra, pitchAccuracy } = scorePerformance(reference, played, BPM, 0)
+  const { correct, wrong, missed, extra, pitchAccuracy } = scorePerformance(reference, played, context)
   return { correct, wrong, missed, extra, pitchAccuracy }
 }
 
@@ -48,7 +48,7 @@ describe('scorePerformance', () => {
   it('one wrong note: 1 substitution, everything else matched', () => {
     const played = play(reference)
     played[1].midi = 63 // D♯ instead of D
-    const score = scorePerformance(reference, played, BPM, 0)
+    const score = scorePerformance(reference, played, context)
     expect(counts(played)).toMatchObject({ correct: 8, wrong: 1, missed: 0, extra: 0 })
     const wrong = score.results.find((result) => result.kind === 'wrong')!
     expect(wrong.reference?.midi).toBe(62)
@@ -68,7 +68,7 @@ describe('scorePerformance', () => {
   it('chord with one wrong note: 2 matched, 1 wrong, chord still aligned', () => {
     const played = play(reference)
     played[6].midi = 63 // the E of the C-E-G chord
-    const score = scorePerformance(reference, played, BPM, 0)
+    const score = scorePerformance(reference, played, context)
     expect(counts(played)).toMatchObject({ correct: 8, wrong: 1, missed: 0, extra: 0 })
     const chordResults = score.results.filter((result) => result.reference?.startBeat === 5)
     expect(chordResults.map((result) => result.kind).sort()).toEqual(['correct', 'correct', 'wrong'])
@@ -84,15 +84,39 @@ describe('scorePerformance', () => {
     expect(counts(played)).toMatchObject({ correct: 9, wrong: 0, missed: 0, extra: 4 })
   })
 
-  it('played everything 20 ms late: 100% pitch, deviations show it', () => {
-    const score = scorePerformance(reference, play(reference, 20), BPM, 0)
+  it('played everything 20 ms late: 100% pitch, timing shows late bias', () => {
+    const score = scorePerformance(reference, play(reference, 20), context)
     expect(score.pitchAccuracy).toBe(1)
-    for (const result of score.results) expect(result.deviationMs).toBeCloseTo(20)
+    expect(score.timing.count).toBe(9)
+    expect(score.timing.onTime).toBe(1)
+    expect(score.timing.meanDeviationMs).toBeCloseTo(20)
+    expect(score.timing.meanAbsDeviationMs).toBeCloseTo(20)
+  })
+
+  it('on time is within ±60 ms, close within ±120 ms', () => {
+    const played = play(bar1)
+    played[0].startMs -= 50 // early but on time
+    played[1].startMs += 100 // close
+    played[2].startMs += 200 // neither
+    const { timing } = scorePerformance(bar1, played, { ...context, barRange: [1, 1] })
+    expect(timing.onTime).toBeCloseTo(2 / 4)
+    expect(timing.close).toBeCloseTo(3 / 4)
+    expect(timing.meanDeviationMs).toBeCloseTo((-50 + 100 + 200) / 4)
   })
 
   it('measures deviation from the start of the selected range', () => {
-    const score = scorePerformance(bar2, play(bar2, 0, -4), BPM, 4)
+    const score = scorePerformance(bar2, play(bar2, 0, -4), { ...context, rangeStartBeat: 4, barRange: [2, 2] })
     for (const result of score.results) expect(result.deviationMs).toBeCloseTo(0)
+  })
+
+  it('breaks the score down per bar, placing extras by their played time', () => {
+    const played = [...play(bar2, 0, -4), { midi: 61, startMs: 3.5 * MS_PER_BEAT, durationMs: 100, velocity: 80 }]
+    const { bars } = scorePerformance(reference, played, context)
+    expect(bars.map((bar) => bar.bar)).toEqual([1, 2])
+    expect(bars[0]).toMatchObject({ referenceCount: 4, missed: 4, pitchAccuracy: 0 })
+    // The extra was played during bar 1's time even though bar 1's notes were skipped.
+    expect(bars[0].extra + bars[1].extra).toBe(1)
+    expect(bars[1]).toMatchObject({ referenceCount: 5, correct: 5, pitchAccuracy: 1 })
   })
 })
 
