@@ -48,13 +48,18 @@ export default function PieceLibrary({ pieces, onChangePieces, onStartSession }:
       onChangePieces([...pieces, piece])
       selectPiece(piece)
     } catch (error) {
-      setImportError(error instanceof Error ? error.message : 'Could not read that file.')
+      setImportError(describeFileError(error))
     }
   }
 
   const attachScore = async (piece: Piece, file: File) => {
-    const bytes = new Uint8Array(await file.arrayBuffer())
-    updatePiece({ ...piece, score: { fileName: file.name, base64: encodeScoreFile(bytes) } })
+    setImportError(null)
+    try {
+      const bytes = new Uint8Array(await file.arrayBuffer())
+      updatePiece({ ...piece, score: { fileName: file.name, base64: encodeScoreFile(bytes) } })
+    } catch (error) {
+      setImportError(describeFileError(error))
+    }
   }
 
   const deletePiece = (piece: Piece) => {
@@ -87,7 +92,7 @@ export default function PieceLibrary({ pieces, onChangePieces, onStartSession }:
 
   return (
     <div className="mt-6 flex gap-6">
-      <PieceList pieces={pieces} selectedId={selectedId} importError={importError} onSelect={selectPiece} onImportFile={(file) => void importFile(file)} />
+      <PieceList pieces={pieces} selectedId={selectedId} importError={importError} onSelect={selectPiece} onImportFile={importFile} />
 
       {!selected && pieces.length > 0 && <p className="mt-2 text-sm text-ink-muted">Pick a piece on the left.</p>}
       {pieces.length === 0 && (
@@ -121,9 +126,12 @@ export default function PieceLibrary({ pieces, onChangePieces, onStartSession }:
                         accept=".mxl,.musicxml,.xml"
                         className="hidden"
                         onChange={(e) => {
-                          const file = e.target.files?.[0]
-                          if (file) void attachScore(selected, file)
-                          e.target.value = ''
+                          const input = e.target
+                          const file = input.files?.[0]
+                          if (!file) return
+                          void attachScore(selected, file).finally(() => {
+                            input.value = '' // reset after the read, see PieceList
+                          })
                         }}
                       />
                     </label>
@@ -223,6 +231,14 @@ export default function PieceLibrary({ pieces, onChangePieces, onStartSession }:
       )}
     </div>
   )
+}
+
+// The browser's "could not be read" usually means a cloud placeholder file, or one moved after it was picked.
+function describeFileError(error: unknown): string {
+  if (error instanceof DOMException && error.name === 'NotReadableError') {
+    return 'The browser could not read that file. If it lives in iCloud Drive or another synced folder, make sure it is downloaded, or copy it to the Desktop and try again.'
+  }
+  return error instanceof Error ? error.message : 'Could not read that file.'
 }
 
 function allTracks(piece: Piece | undefined): number[] {

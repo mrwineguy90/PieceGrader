@@ -8,7 +8,7 @@ interface Props {
   selectedId: string | null
   importError: string | null
   onSelect: (piece: Piece) => void
-  onImportFile: (file: File) => void
+  onImportFile: (file: File) => Promise<void>
 }
 
 export default function PieceList({ pieces, selectedId, importError, onSelect, onImportFile }: Props) {
@@ -21,9 +21,14 @@ export default function PieceList({ pieces, selectedId, importError, onSelect, o
           accept=".mid,.midi"
           className="hidden"
           onChange={(e) => {
-            const file = e.target.files?.[0]
-            if (file) onImportFile(file)
-            e.target.value = '' // so the same file can be imported again
+            const input = e.target
+            const file = input.files?.[0]
+            if (!file) return
+            // Reset only after the read has finished: clearing the input while
+            // the browser is still opening the file can fail the read.
+            void onImportFile(file).finally(() => {
+              input.value = '' // so the same file can be imported again
+            })
           }}
         />
       </label>
