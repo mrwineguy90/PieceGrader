@@ -30,8 +30,10 @@ export default function SessionScreen({ status, positionBeat, onStop }: Props) {
   const [playheadBeat, setPlayheadBeat] = useState<number | undefined>(undefined)
   const [scoreZoom, setScoreZoom] = useState(DEFAULT_SCORE_ZOOM)
 
-  // Smooth playhead: read the clock every frame rather than on the hook's 100 ms tick.
+  // Piano-roll fallback only: the score view runs its own frame loop and moves
+  // its line directly, so it never goes through React state.
   useEffect(() => {
+    if (config.piece.score) return
     let frame = 0
     const tick = () => {
       setPlayheadBeat(positionBeat(performance.now()) ?? undefined)
@@ -39,7 +41,7 @@ export default function SessionScreen({ status, positionBeat, onStop }: Props) {
     }
     frame = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(frame)
-  }, [positionBeat])
+  }, [positionBeat, config.piece.score])
 
   return (
     <div className="mt-4 space-y-3">
@@ -83,7 +85,7 @@ export default function SessionScreen({ status, positionBeat, onStop }: Props) {
 
       {config.piece.score ? (
         <div className="card p-3">
-          <ScoreView score={config.piece.score} positionBeat={playheadBeat} zoom={scoreZoom} maxHeight="78vh" visibleStaves={config.tracks} />
+          <ScoreView score={config.piece.score} positionBeat={positionBeat} zoom={scoreZoom} maxHeight="78vh" visibleStaves={config.tracks} />
         </div>
       ) : (
         <PianoRoll

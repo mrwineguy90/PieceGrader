@@ -1,35 +1,35 @@
 // Renders a piece's attached MusicXML as notation with OpenSheetMusicDisplay
-// and draws a playhead that glides through it in time with the session.
+// and draws a playhead that sweeps through it in time with the session.
 //
-// How the playhead knows where to go: after rendering, OSMD's own cursor is
-// stepped through the whole score once (hidden from the user by the end) and
-// each step's beat and pixel position are remembered. During a session the
-// line sits on the last step at or before the current beat and slides toward
-// the next step, through barlines; only when the next step is on another
-// system does it head for the barline and then jump. This assumes the .mid
-// and the MusicXML came from the same MuseScore file (same bars, repeats removed).
+// How the playhead knows where to go: after rendering, every bar's note area
+// (left and right edge in pixels, top and height of its system) and its
+// beat range are read from OSMD's layout. Bars are laid out at equal width,
+// so the line moves across each bar at a constant speed by beat: steady by
+// construction, and close to the noteheads. It is moved straight from an
+// animation frame loop with a transform, never through React state, so a
+// busy frame cannot make it stutter. Assumes the .mid and the MusicXML came
+// from the same MuseScore file (same bars, repeats removed).
 
-import { CursorType, OpenSheetMusicDisplay } from 'opensheetmusicdisplay'
+import { OpenSheetMusicDisplay } from 'opensheetmusicdisplay'
 import { useEffect, useRef, useState } from 'react'
 import { decodeScoreFile } from './pieces'
 import type { PieceScore } from './types'
 
 const OSMD_PX_PER_UNIT = 10 // OSMD lays out in its own units; 10 px each at zoom 1
-const CURSOR_HALF_WIDTH_UNITS = 1.5 // the standard cursor is a 3-unit box centred on the note
 const SCROLL_MARGIN_PX = 40
 
-interface Step {
-  beat: number // quarter notes from the start of the score
-  x: number // px, note centre
+interface Bar {
+  startBeat: number // quarter notes from the start of the score
+  beats: number
+  left: number // px, where notes begin (after clef / key / time signature)
+  right: number // px, the barline
   top: number // px, top of the system
   height: number // px, height of the system
-  measureIndex: number
-  measureRight: number // px, right edge of the bar this step is in
 }
 
 interface Props {
   score: PieceScore
-  positionBeat?: number // quarter notes from the start of the piece; omit for a static preview
+  positionBeat?: (nowMs: number) => number | null // current beat; omit for a static preview
   zoom: number // 1 = OSMD's default size
   maxHeight: string // CSS length; the score scrolls inside this
   // Which staves to draw, by index from the top (track 0 = top staff, track 1
@@ -43,7 +43,7 @@ export default function ScoreView({ score, positionBeat, zoom, maxHeight, visibl
   const container = useRef<HTMLDivElement>(null)
   const line = useRef<HTMLDivElement>(null)
   const osmd = useRef<OpenSheetMusicDisplay | null>(null)
-  const steps = useRef<Step[]>([])
+  const bars = useRef<Bar[]>([])
   const lastScrolledTop = useRef<number | null>(null)
   const [ready, setReady] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -71,7 +71,7 @@ export default function ScoreView({ score, positionBeat, zoom, maxHeight, visibl
       autoBeam: true, // generated drill notation carries no beams; real scores keep their own
       defaultColorMusic: dark ? '#f4f4f5' : '#18181b',
       followCursor: false,
-      cursorsOptions: [{ type: CursorType.Standard, color: '#000000', alpha: 0, follow: false }],
+      disableCursor: true,
     })
     instance.zoom = zoom
     // Every bar the same width (the widest one), so the playhead moves at a
@@ -83,7 +83,7 @@ export default function ScoreView({ score, positionBeat, zoom, maxHeight, visibl
         if (cancelled) return
         applyStaffVisibility(instance, visibleStaves)
         instance.render()
-        steps.current = collectSteps(instance)
+        bars.current = measureBars(instance)
         lastScrolledTop.current = null
         osmd.current = instance
         setReady(true)
@@ -96,7 +96,7 @@ export default function ScoreView({ score, positionBeat, zoom, maxHeight, visibl
       osmd.current = null
       instance.clear()
     }
-  }, [score.base64, dark]) // only reload when the file or theme changes; zoom and position are handled below
+  }, [score.base64, dark]) // only reload when the file or theme changes; zoom, staves and position are handled below
 
   const staffKey = visibleStaves?.join(',') ?? 'all'
   useEffect(() => {
@@ -106,25 +106,31 @@ export default function ScoreView({ score, positionBeat, zoom, maxHeight, visibl
     if (!changed) return
     instance.zoom = zoom
     instance.render()
-    steps.current = collectSteps(instance) // pixel positions changed
+    bars.current = measureBars(instance) // pixel positions changed
     lastScrolledTop.current = null
-  }, [zoom, staffKey, ready]) // eslint-free: staffKey stands in for the visibleStaves array
+  }, [zoom, staffKey, ready]) // staffKey stands in for the visibleStaves array
 
-  // Move the line directly in the DOM: this runs every animation frame.
+  // The playhead loop: read the clock every frame and move the line directly.
   useEffect(() => {
     const marker = line.current
     const box = scrollBox.current
-    if (!marker || !box || !ready || positionBeat === undefined) return
-    const place = linePosition(steps.current, positionBeat)
-    if (!place) return
-    marker.style.display = ''
-    marker.style.left = `${place.x}px`
-    marker.style.top = `${place.top}px`
-    marker.style.height = `${place.height}px`
-    if (place.top !== lastScrolledTop.current) {
-      lastScrolledTop.current = place.top
-      box.scrollTo({ top: Math.max(0, place.top - SCROLL_MARGIN_PX), behavior: 'smooth' })
+    if (!marker || !box || !ready || !positionBeat) return
+    let frame = 0
+    const tick = () => {
+      frame = requestAnimationFrame(tick)
+      const beat = positionBeat(performance.now())
+      const place = beat === null ? null : linePosition(bars.current, beat)
+      if (!place) return
+      marker.style.display = ''
+      marker.style.transform = `translate3d(${place.x}px, ${place.top}px, 0)`
+      marker.style.height = `${place.height}px`
+      if (place.top !== lastScrolledTop.current) {
+        lastScrolledTop.current = place.top
+        box.scrollTo({ top: Math.max(0, place.top - SCROLL_MARGIN_PX), behavior: 'smooth' })
+      }
     }
+    frame = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(frame)
   }, [positionBeat, ready])
 
   return (
@@ -133,7 +139,7 @@ export default function ScoreView({ score, positionBeat, zoom, maxHeight, visibl
       {!ready && !error && <p className="text-sm text-ink-muted">Loading score…</p>}
       <div className="relative">
         <div ref={container} className="w-full" />
-        <div ref={line} className="pointer-events-none absolute w-0.5 bg-red-500 opacity-70" style={{ display: 'none' }} />
+        <div ref={line} className="pointer-events-none absolute top-0 left-0 w-0.5 bg-red-500 opacity-70 will-change-transform" style={{ display: 'none' }} />
       </div>
     </div>
   )
@@ -176,55 +182,37 @@ function applyStaffVisibility(instance: OpenSheetMusicDisplay, visibleStaves: nu
   return true
 }
 
-// Walk OSMD's cursor front to back, reading where it lands each step. The
-// cursor only positions itself while shown, so show it (fully transparent)
-// and hide it again after.
-function collectSteps(instance: OpenSheetMusicDisplay): Step[] {
-  const { cursor, zoom } = instance
-  const pxPerUnit = OSMD_PX_PER_UNIT * zoom
-  const collected: Step[] = []
-  cursor.show()
-  cursor.reset()
-  while (!cursor.iterator.EndReached) {
-    const element = cursor.cursorElement
-    const measureIndex = cursor.iterator.CurrentMeasureIndex
-    const measure = instance.GraphicSheet.MeasureList[measureIndex]?.find((each) => each) // first drawn staff; hidden ones are gaps
-    const measureBox = measure?.PositionAndShape
-    const x = parseFloat(element.style.left) + CURSOR_HALF_WIDTH_UNITS * pxPerUnit
-    // Vertical extent from the layout, not from the cursor image: its height
-    // attribute is not reliable on the first pass after rendering.
-    const staffLines = measure?.ParentMusicSystem?.StaffLines ?? []
+// Read every bar's note area and beat range from the rendered layout.
+function measureBars(instance: OpenSheetMusicDisplay): Bar[] {
+  const pxPerUnit = OSMD_PX_PER_UNIT * instance.zoom
+  const collected: Bar[] = []
+  instance.Sheet.SourceMeasures.forEach((source, index) => {
+    const graphical = instance.GraphicSheet.MeasureList[index]?.find((each) => each) // first drawn staff; hidden ones are gaps
+    if (!graphical) return
+    const box = graphical.PositionAndShape
+    const staffLines = graphical.ParentMusicSystem?.StaffLines ?? []
     const firstStaff = staffLines[0]?.PositionAndShape.AbsolutePosition
     const lastStaff = staffLines[staffLines.length - 1]
-    const top = firstStaff ? firstStaff.y * pxPerUnit : parseFloat(element.style.top)
+    const top = (firstStaff?.y ?? box.AbsolutePosition.y) * pxPerUnit
     const bottom = lastStaff ? (lastStaff.PositionAndShape.AbsolutePosition.y + lastStaff.StaffHeight) * pxPerUnit : top + 4 * pxPerUnit
     collected.push({
-      beat: cursor.iterator.CurrentEnrolledTimestamp.RealValue * 4, // whole notes → quarters
-      x,
+      startBeat: source.AbsoluteTimestamp.RealValue * 4, // whole notes → quarters
+      beats: source.Duration.RealValue * 4,
+      left: (box.AbsolutePosition.x + graphical.beginInstructionsWidth) * pxPerUnit,
+      right: (box.AbsolutePosition.x + box.Size.width - graphical.endInstructionsWidth) * pxPerUnit,
       top,
       height: bottom - top,
-      measureIndex,
-      measureRight: measureBox ? (measureBox.AbsolutePosition.x + measureBox.Size.width) * pxPerUnit : x,
     })
-    cursor.next()
-  }
-  cursor.reset()
-  cursor.hide()
+  })
   return collected
 }
 
-function linePosition(steps: Step[], beat: number): { x: number; top: number; height: number } | null {
-  if (steps.length === 0) return null
+// Constant speed across the bar the beat falls in; holds at the ends.
+function linePosition(bars: Bar[], beat: number): { x: number; top: number; height: number } | null {
+  if (bars.length === 0) return null
   let index = 0
-  while (index + 1 < steps.length && steps[index + 1].beat <= beat) index += 1
-  const step = steps[index]
-  const next = steps[index + 1]
-  if (!next) return step // hold on the last note
-  const span = next.beat - step.beat
-  const fraction = span <= 0 ? 0 : Math.min(1, (beat - step.beat) / span)
-  // Glide straight to the next note, through barlines, as long as it is on the
-  // same system; at a line break head for the barline instead, then jump.
-  const sameSystem = next.top === step.top
-  const targetX = sameSystem ? next.x : step.measureRight
-  return { x: step.x + fraction * (targetX - step.x), top: step.top, height: step.height }
+  while (index + 1 < bars.length && bars[index + 1].startBeat <= beat) index += 1
+  const bar = bars[index]
+  const fraction = bar.beats <= 0 ? 0 : Math.min(1, Math.max(0, (beat - bar.startBeat) / bar.beats))
+  return { x: bar.left + fraction * (bar.right - bar.left), top: bar.top, height: bar.height }
 }
