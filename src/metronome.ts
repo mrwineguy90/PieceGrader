@@ -51,6 +51,13 @@ export class Metronome {
   private nextBeatAudioTime = 0
   private nextBeatIndex = 0
 
+  // Create and wake the audio context inside a user gesture (a button click),
+  // so a later start() triggered by a MIDI note is allowed to make sound.
+  warmUp(): void {
+    this.context ??= new AudioContext()
+    void this.context.resume()
+  }
+
   start(bpm: number, beatsPerBar: number): void {
     this.stop()
     this.context ??= new AudioContext()

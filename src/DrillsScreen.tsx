@@ -12,7 +12,7 @@ import PiecePreview from './PiecePreview'
 import { barCount } from './pieces'
 import { keyLabel } from './pitches'
 import type { Performance } from './types'
-import type { SessionConfig } from './useSession'
+import type { SessionConfig } from './sessionConfig'
 
 const MIN_BPM = 30
 const MAX_BPM = 240
@@ -30,6 +30,7 @@ interface Props {
 export default function DrillsScreen({ performances, onStartSession }: Props) {
   const [spec, setSpec] = useState<DrillSpec>({ family: 'scale', variant: 'major', key: 'C', hands: 'right', octaves: 1, notesPerClick: 1 })
   const [bpm, setBpm] = useState(60)
+  const [waitForKey, setWaitForKey] = useState(true)
   const family = FAMILIES[spec.family]
   const drill = useMemo(() => generateDrill(spec), [spec])
   const piece = useMemo(() => drillToPiece(drill), [drill])
@@ -54,7 +55,7 @@ export default function DrillsScreen({ performances, onStartSession }: Props) {
 
   // Track 0 is the right hand, track 1 the left; the preview and the session show only the chosen hands.
   const tracks = spec.hands === 'right' ? [0] : spec.hands === 'left' ? [1] : [0, 1]
-  const start = (loop: boolean) => onStartSession({ piece, tracks, bpm, barRange: [1, barCount(piece)], loop })
+  const start = (loop: boolean) => onStartSession({ piece, tracks, bpm, barRange: [1, barCount(piece)], loop, waitForKey })
 
   return (
     <div className="mt-6 space-y-4">
@@ -148,6 +149,10 @@ export default function DrillsScreen({ performances, onStartSession }: Props) {
               +5
             </button>
           </Field>
+          <label className="flex items-center gap-2 pb-2 text-sm">
+            <input type="checkbox" checked={waitForKey} onChange={(e) => setWaitForKey(e.target.checked)} />
+            Wait for a key press before the count-in
+          </label>
         </div>
       </div>
 

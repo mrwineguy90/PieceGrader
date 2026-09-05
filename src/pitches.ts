@@ -167,3 +167,11 @@ export function scaleUpAndDown(kind: ScaleKind, tonicName: string, startOctave: 
 export function keyLabel(tonicName: string): string {
   return tonicName.replace('#', '♯').replace('b', '♭')
 }
+
+const MIDI_NAMES = ['C', 'C♯', 'D', 'D♯', 'E', 'F', 'F♯', 'G', 'G♯', 'A', 'A♯', 'B']
+
+// A MIDI number as a plain name for the screen, e.g. 60 → "C4". Sharps only;
+// this is for telling the player which key, not for notation.
+export function midiName(midi: number): string {
+  return `${MIDI_NAMES[midi % 12]}${Math.floor(midi / 12) - 1}`
+}

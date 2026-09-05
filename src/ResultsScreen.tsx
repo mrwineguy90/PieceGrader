@@ -8,7 +8,8 @@ import { meetsPassMark, PASS_CLOSE, PASS_PITCH } from './ladder'
 import PianoRoll from './PianoRoll'
 import { bpmLabel, quarterNoteBpm } from './pieces'
 import { CLOSE_MS, ON_TIME_MS, type BarScore, type Summary } from './scoring'
-import { rangeStartBeat, type SessionConfig, type SessionResult } from './useSession'
+import { rangeStartBeat, type SessionConfig } from './sessionConfig'
+import type { SessionResult } from './useSession'
 
 interface Props {
   result: SessionResult

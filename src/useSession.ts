@@ -11,19 +11,13 @@ import { Metronome } from './metronome'
 import { NoteRecorder } from './midi'
 import { beatsPerBar, clickLengthInBeats, quarterNoteBpm } from './pieces'
 import { scorePerformance, type Score } from './scoring'
-import type { Piece, PlayedNote, ReferenceNote } from './types'
+import { firstChordOf, rangeStartBeat, referenceNotesInRange, type SessionConfig } from './sessionConfig'
+import type { PlayedNote } from './types'
 import type { MidiInputState } from './useMidiInput'
 
 const EARLY_GRACE_MS = 150 // a note this early on beat 1 still counts as beat 1
 const TICK_MS = 100
-
-export interface SessionConfig {
-  piece: Piece
-  tracks: number[]
-  bpm: number // clicks per minute of the time signature's note (see pieces.ts)
-  barRange: [number, number] // 1-based, inclusive
-  loop: boolean
-}
+const ARM_CHORD_WINDOW_MS = 300 // the opening chord's notes must all arrive within this, rolled or together
 
 export interface Pass {
   played: PlayedNote[]
@@ -37,21 +31,15 @@ export interface SessionResult {
 
 export type SessionStatus =
   | { phase: 'idle' }
+  | { phase: 'armed'; config: SessionConfig; firstChord: number[] } // waiting for the piece's opening note(s); not graded
   | { phase: 'count-in'; config: SessionConfig; beatInBar: number; pass: number; lastScore: Score | null }
   | { phase: 'recording'; config: SessionConfig; bar: number; beatInBar: number; pass: number; lastScore: Score | null }
   | { phase: 'done'; result: SessionResult }
 
-// Beat 1 of the first selected bar, in quarter notes: played time 0 is here.
-export function rangeStartBeat(config: SessionConfig): number {
-  return (config.barRange[0] - 1) * beatsPerBar(config.piece)
-}
-
-export function referenceNotesInRange(config: SessionConfig): ReferenceNote[] {
-  const startBeat = rangeStartBeat(config)
-  const endBeat = config.barRange[1] * beatsPerBar(config.piece)
-  return config.piece.notes.filter(
-    (note) => config.tracks.includes(note.track) && note.startBeat >= startBeat && note.startBeat < endBeat,
-  )
+interface ArmedSession {
+  config: SessionConfig
+  firstChord: number[]
+  pressedAt: Map<number, number> // midi → time of its latest note-on while waiting
 }
 
 interface ActiveSession {
@@ -87,9 +75,23 @@ export function useSession(midi: MidiInputState, onResult?: (result: SessionResu
   const active = useRef<ActiveSession | null>(null)
   const onResultRef = useRef(onResult)
   onResultRef.current = onResult
-  const running = status.phase === 'count-in' || status.phase === 'recording'
+  const armed = useRef<ArmedSession | null>(null) // waiting for the opening note(s)
+  const running = status.phase === 'armed' || status.phase === 'count-in' || status.phase === 'recording'
 
+  // From a button click: either begin at once or arm and wait for the opening notes.
   const start = (config: SessionConfig) => {
+    metronome.warmUp() // inside the click, so a MIDI-triggered begin() may play sound
+    const firstChord = firstChordOf(config)
+    if (!config.waitForKey || firstChord.length === 0) {
+      begin(config)
+      return
+    }
+    armed.current = { config, firstChord, pressedAt: new Map() }
+    setStatus({ phase: 'armed', config, firstChord })
+  }
+
+  const begin = (config: SessionConfig) => {
+    armed.current = null
     const { timeSignature } = config.piece
     const [clicksPerBar] = timeSignature
     metronome.start(config.bpm, clicksPerBar)
@@ -134,6 +136,10 @@ export function useSession(midi: MidiInputState, onResult?: (result: SessionResu
   }
 
   const finish = () => {
+    if (armed.current) {
+      reset() // nothing was played yet
+      return
+    }
     const session = active.current
     if (!session) return
     active.current = null
@@ -148,6 +154,7 @@ export function useSession(midi: MidiInputState, onResult?: (result: SessionResu
 
   const reset = () => {
     active.current = null
+    armed.current = null
     metronome.stop()
     setStatus({ phase: 'idle' })
   }
@@ -156,6 +163,7 @@ export function useSession(midi: MidiInputState, onResult?: (result: SessionResu
   // session screen. Sits at the start of the range during the count-in and
   // the gap bar; null when no session is running.
   const positionBeat = (nowMs: number): number | null => {
+    if (armed.current) return rangeStartBeat(armed.current.config)
     const session = active.current
     if (!session) return null
     const { sincePassOne, withinPass } = timeline(session, nowMs, metronome.beatTimeMs(0))
@@ -165,18 +173,29 @@ export function useSession(midi: MidiInputState, onResult?: (result: SessionResu
   }
 
   // Feed keyboard events into the session's recorder; ignore count-in noodling.
+  // While armed, wrong keys do nothing; once every note of the opening chord
+  // has been pressed within the window, the count-in starts. Those presses
+  // are not recorded (their note-offs arrive later and are ignored).
   useEffect(
     () =>
       midi.subscribe((event) => {
+        const waiting = armed.current
+        if (waiting) {
+          if (event.kind !== 'noteon') return
+          waiting.pressedAt.set(event.midi, event.timeMs)
+          const complete = waiting.firstChord.every((midi) => event.timeMs - (waiting.pressedAt.get(midi) ?? -Infinity) <= ARM_CHORD_WINDOW_MS)
+          if (complete) begin(waiting.config)
+          return
+        }
         const session = active.current
         if (session && event.timeMs >= originMs(session) - EARLY_GRACE_MS) session.recorder.push(event)
       }),
-    [midi.subscribe],
+    [midi.subscribe], // begin/originMs only touch refs and the metronome, which are stable
   )
 
   // Bar/beat display, scoring finished passes, and the automatic stop.
   useEffect(() => {
-    if (!running) return
+    if (!running || status.phase === 'armed') return
     const timer = window.setInterval(() => {
       const session = active.current
       if (!session) return
@@ -199,7 +218,7 @@ export function useSession(midi: MidiInputState, onResult?: (result: SessionResu
       }
     }, TICK_MS)
     return () => window.clearInterval(timer)
-  }, [running]) // finish/metronome are stable; only the running flag matters
+  }, [running, status.phase === 'armed']) // finish/metronome are stable; only running/armed matter
 
   useEffect(() => {
     if (!running) return

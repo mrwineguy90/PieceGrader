@@ -3,6 +3,15 @@
 import { barCount, bpmLabel } from './pieces'
 import type { Piece } from './types'
 
+// The browser's "could not be read" usually means a file a sync layer still
+// holds (fresh files in ~/Documents on a Mac), or one moved after it was picked.
+export function describeFileError(error: unknown): string {
+  if (error instanceof DOMException && error.name === 'NotReadableError') {
+    return 'The browser could not read that file. Fresh files in synced folders such as Documents can do this: wait a minute, or export to Downloads and import from there.'
+  }
+  return error instanceof Error ? error.message : 'Could not read that file.'
+}
+
 interface Props {
   pieces: Piece[]
   selectedId: string | null

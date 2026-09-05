@@ -8,6 +8,7 @@ import { useEffect, useState } from 'react'
 import PianoRoll from './PianoRoll'
 import ScoreView from './ScoreView'
 import { bpmLabel } from './pieces'
+import { midiName } from './pitches'
 import type { SessionStatus } from './useSession'
 
 const ROLL_PIXELS_PER_BEAT = 48
@@ -15,13 +16,15 @@ const ROLL_ROW_HEIGHT = 12
 const DEFAULT_SCORE_ZOOM = 0.9
 
 interface Props {
-  status: Extract<SessionStatus, { phase: 'count-in' | 'recording' }>
+  status: Extract<SessionStatus, { phase: 'armed' | 'count-in' | 'recording' }>
   positionBeat: (nowMs: number) => number | null
   onStop: () => void
 }
 
 export default function SessionScreen({ status, positionBeat, onStop }: Props) {
-  const { config, lastScore } = status
+  const { config } = status
+  const lastScore = status.phase === 'armed' ? null : status.lastScore
+  const beatInBar = status.phase === 'armed' ? 0 : status.beatInBar
   const [clicksPerBar] = config.piece.timeSignature
   const trackNames = config.tracks.map((track) => config.piece.trackNames[track]).join(', ')
   const [playheadBeat, setPlayheadBeat] = useState<number | undefined>(undefined)
@@ -41,22 +44,27 @@ export default function SessionScreen({ status, positionBeat, onStop }: Props) {
   return (
     <div className="mt-4 space-y-3">
       <div className="card flex flex-wrap items-center gap-x-6 gap-y-3 py-3">
-        <div className="w-44 text-5xl leading-none font-semibold tabular-nums">
-          {status.phase === 'count-in' ? <span className="text-ink-muted">Ready</span> : `Bar ${status.bar}`}
+        <div className="min-w-44 text-5xl leading-none font-semibold tabular-nums">
+          {status.phase === 'armed' && <span className="text-accent">Play {status.firstChord.map(midiName).join(' + ')}</span>}
+          {status.phase === 'count-in' && <span className="text-ink-muted">Ready</span>}
+          {status.phase === 'recording' && `Bar ${status.bar}`}
         </div>
         <div className="flex gap-2.5">
           {Array.from({ length: clicksPerBar }, (_, i) => {
-            const active = status.beatInBar === i + 1
+            const active = beatInBar === i + 1
             const color = !active ? 'bg-line' : i === 0 ? 'bg-red-500' : 'bg-accent'
             return <span key={i} className={`inline-block h-5 w-5 rounded-full transition-colors ${color}`} />
           })}
         </div>
         <div className="min-w-0 flex-1 truncate text-sm text-ink-muted">
+          {status.phase === 'armed' && (
+            <span className="mr-2 text-ink">Place your hands and play the opening {status.firstChord.length > 1 ? 'chord' : 'note'} to start the count-in. Wrong keys do nothing.</span>
+          )}
           <span className="font-medium text-ink">{config.piece.title}</span> · {config.piece.timeSignature.join('/')} ·{' '}
           {bpmLabel(config.bpm, config.piece.timeSignature)} · {trackNames} · bars {config.barRange[0]}–{config.barRange[1]}
           {config.loop && ' · loop'}
         </div>
-        {config.loop && (
+        {config.loop && status.phase !== 'armed' && (
           <div className="text-sm tabular-nums text-ink-muted">
             Pass {status.pass}
             {lastScore && ` · last ${Math.round(lastScore.pitchAccuracy * 100)}% pitch, ${Math.round(lastScore.timing.onTime * 100)}% on time`}

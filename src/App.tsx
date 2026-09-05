@@ -61,7 +61,7 @@ export default function App() {
 
   const { status } = session
   let body
-  if (status.phase === 'count-in' || status.phase === 'recording') {
+  if (status.phase === 'armed' || status.phase === 'count-in' || status.phase === 'recording') {
     body = <SessionScreen status={status} positionBeat={session.positionBeat} onStop={session.finish} />
   } else if (status.phase === 'done') {
     body = <ResultsScreen result={status.result} onPractice={session.start} onBack={session.reset} />

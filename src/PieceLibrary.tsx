@@ -4,11 +4,11 @@
 
 import { useState } from 'react'
 import { TimeSignatureInput } from './MidiCheck'
-import PieceList from './PieceList'
+import PieceList, { describeFileError } from './PieceList'
 import PiecePreview from './PiecePreview'
 import { barCount, bpmLabel, clickLengthInBeats, encodeScoreFile, parseMidiFilePiece, quarterNoteBpm, splitAtMiddleC } from './pieces'
 import type { Piece } from './types'
-import type { SessionConfig } from './useSession'
+import type { SessionConfig } from './sessionConfig'
 
 const MIN_BPM = 30
 const MAX_BPM = 240
@@ -25,11 +25,13 @@ export default function PieceLibrary({ pieces, onChangePieces, onStartSession }:
   const [bpm, setBpm] = useState(pieces[0]?.defaultBpm ?? 100)
   const [barRange, setBarRange] = useState<[number, number]>(() => wholePiece(pieces[0]))
   const [loop, setLoop] = useState(false)
+  const [waitForKey, setWaitForKey] = useState(true)
   const [importError, setImportError] = useState<string | null>(null)
 
   const selected = pieces.find((piece) => piece.id === selectedId) ?? null
 
   const selectPiece = (piece: Piece) => {
+    if (piece.id === selectedId) return // re-clicking the current piece keeps the tempo, tracks and bars you set
     setSelectedId(piece.id)
     setIncludedTracks(allTracks(piece))
     setBpm(piece.defaultBpm)
@@ -145,7 +147,7 @@ export default function PieceLibrary({ pieces, onChangePieces, onStartSession }:
                 <button
                   className="btn btn-primary px-5"
                   disabled={includedTracks.length === 0}
-                  onClick={() => onStartSession({ piece: selected, tracks: includedTracks, bpm, barRange, loop })}
+                  onClick={() => onStartSession({ piece: selected, tracks: includedTracks, bpm, barRange, loop, waitForKey })}
                 >
                   {loop ? 'Loop' : 'Practice'}
                 </button>
@@ -222,6 +224,10 @@ export default function PieceLibrary({ pieces, onChangePieces, onStartSession }:
                   <input type="checkbox" checked={loop} onChange={(e) => setLoop(e.target.checked)} />
                   Loop the range, one-bar gap, each pass graded
                 </label>
+                <label className="mt-2 flex items-center gap-2 text-sm">
+                  <input type="checkbox" checked={waitForKey} onChange={(e) => setWaitForKey(e.target.checked)} />
+                  Wait for a key press before the count-in
+                </label>
               </div>
             </div>
           </div>
@@ -231,14 +237,6 @@ export default function PieceLibrary({ pieces, onChangePieces, onStartSession }:
       )}
     </div>
   )
-}
-
-// The browser's "could not be read" usually means a cloud placeholder file, or one moved after it was picked.
-function describeFileError(error: unknown): string {
-  if (error instanceof DOMException && error.name === 'NotReadableError') {
-    return 'The browser could not read that file. If it lives in iCloud Drive or another synced folder, make sure it is downloaded, or copy it to the Desktop and try again.'
-  }
-  return error instanceof Error ? error.message : 'Could not read that file.'
 }
 
 function allTracks(piece: Piece | undefined): number[] {
