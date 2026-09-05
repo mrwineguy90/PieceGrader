@@ -90,6 +90,13 @@ export default function PieceLibrary({ pieces, onChangePieces, onStartSession }:
       <PieceList pieces={pieces} selectedId={selectedId} importError={importError} onSelect={selectPiece} onImportFile={(file) => void importFile(file)} />
 
       {!selected && pieces.length > 0 && <p className="mt-2 text-sm text-ink-muted">Pick a piece on the left.</p>}
+      {pieces.length === 0 && (
+        <div className="card flex-1 text-sm text-ink-muted">
+          <p className="font-medium text-ink">No pieces yet</p>
+          <p className="mt-1">Import a .mid file to practise a piece. The README explains how to get one from a PDF or from musescore.com.</p>
+          <p className="mt-1">Or open the Drills tab: scales, arpeggios and Hanon need no file at all.</p>
+        </div>
+      )}
 
       {selected && (
         <div className="min-w-0 flex-1 space-y-4">

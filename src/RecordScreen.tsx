@@ -76,7 +76,7 @@ export default function RecordScreen({ midi, onSave, onCancel }: Props) {
   const bar = beat === null ? 0 : Math.floor(beat.index / clicksPerBar) // bar 0 = count-in
 
   return (
-    <div className="mt-6 flex flex-col items-center gap-6">
+    <div className="card mt-6 flex flex-col items-center gap-6 py-8">
       {!recording ? (
         <>
           <p className="text-sm text-ink-muted">

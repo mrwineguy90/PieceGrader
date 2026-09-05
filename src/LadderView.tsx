@@ -17,6 +17,7 @@ const CHIP_COLORS: Record<StepStatus, string> = {
 
 interface Props {
   performances: Performance[]
+  selectedId: string // the drill currently loaded in the picker; its chip is filled with the accent
   onPick: (step: LadderStep) => void
 }
 
@@ -40,7 +41,7 @@ function groupSteps(level: LadderLevel): Group[] {
   return [...groups.values()]
 }
 
-export default function LadderView({ performances, onPick }: Props) {
+export default function LadderView({ performances, selectedId, onPick }: Props) {
   const next = nextStep(performances)
   const [openLevel, setOpenLevel] = useState<number | null>(next?.levelIndex ?? 0)
 
@@ -52,6 +53,7 @@ export default function LadderView({ performances, onPick }: Props) {
           A step passes at {Math.round(PASS_PITCH * 100)}% pitch and {Math.round(PASS_ON_TIME * 100)}% on time, at or above its tempo.
         </span>
       </div>
+      <p className="mt-1 text-xs text-ink-muted">Chips: gray not tried, yellow tried, green passed. Ring = next step. Solid = loaded in the picker.</p>
       {!next && <p className="mt-2 text-sm text-green-700">Every step passed.</p>}
 
       <ul className="mt-3 space-y-2">
@@ -86,12 +88,13 @@ export default function LadderView({ performances, onPick }: Props) {
                       <span className="flex flex-wrap gap-1">
                         {group.steps.map(({ step, chip }) => {
                           const status = stepStatus(step, performances)
-                          const isNext = next?.step.id === step.id
+                          const isNext = next?.step.id === step.id // ring = suggested next step
+                          const isLoaded = step.id === selectedId // solid = what the picker holds now
                           return (
                             <button
                               key={step.id}
                               title={drillTitle(parseDrillId(step.id) as DrillSpec)}
-                              className={`rounded px-2 py-0.5 text-xs font-medium ${CHIP_COLORS[status]} ${isNext ? 'ring-2 ring-accent' : ''}`}
+                              className={`rounded px-2 py-0.5 text-xs font-medium ${isLoaded ? 'bg-accent text-accent-ink' : CHIP_COLORS[status]} ${isNext ? 'ring-2 ring-accent ring-offset-1 ring-offset-surface-raised' : ''}`}
                               onClick={() => onPick(step)}
                             >
                               {chip}

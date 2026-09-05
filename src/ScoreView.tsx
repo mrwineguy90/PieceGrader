@@ -70,6 +70,9 @@ export default function ScoreView({ score, positionBeat, zoom, maxHeight }: Prop
       cursorsOptions: [{ type: CursorType.Standard, color: '#000000', alpha: 0, follow: false }],
     })
     instance.zoom = zoom
+    // Every bar the same width (the widest one), so the playhead moves at a
+    // steady speed instead of racing through bars with few notes.
+    instance.EngravingRules.FixedMeasureWidth = true
     instance
       .load(new Blob([decodeScoreFile(score.base64).buffer as ArrayBuffer]))
       .then(() => {

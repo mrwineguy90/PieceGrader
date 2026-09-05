@@ -151,7 +151,7 @@ export default function DrillsScreen({ performances, onStartSession }: Props) {
 
       <PiecePreview piece={piece} includedTracks={[0, 1]} />
 
-      <LadderView performances={performances} onPick={pickStep} />
+      <LadderView performances={performances} selectedId={drill.id} onPick={pickStep} />
     </div>
   )
 }
