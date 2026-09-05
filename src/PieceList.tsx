@@ -12,6 +12,38 @@ export function describeFileError(error: unknown): string {
   return error instanceof Error ? error.message : 'Could not read that file.'
 }
 
+// The "attach a score" picker or the attached file's name with a remove link.
+export function ScoreAttachment({ piece, onAttach, onRemove }: { piece: Piece; onAttach: (file: File) => Promise<void>; onRemove: () => void }) {
+  if (piece.score) {
+    return (
+      <>
+        score {piece.score.fileName}{' '}
+        <button className="text-red-600 hover:underline" onClick={onRemove}>
+          remove
+        </button>
+      </>
+    )
+  }
+  return (
+    <label className="cursor-pointer text-accent hover:underline">
+      attach a score (.mxl / .musicxml)
+      <input
+        type="file"
+        accept=".mxl,.musicxml,.xml"
+        className="hidden"
+        onChange={(e) => {
+          const input = e.target
+          const file = input.files?.[0]
+          if (!file) return
+          void onAttach(file).finally(() => {
+            input.value = '' // reset after the read, see above
+          })
+        }}
+      />
+    </label>
+  )
+}
+
 interface Props {
   pieces: Piece[]
   selectedId: string | null

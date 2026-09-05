@@ -2,36 +2,54 @@
 // (tracks and time signature, tempo, bars and loop) with Practice on top,
 // and a preview of the roll or the score.
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { TimeSignatureInput } from './MidiCheck'
-import PieceList, { describeFileError } from './PieceList'
+import PieceList, { describeFileError, ScoreAttachment } from './PieceList'
 import PiecePreview from './PiecePreview'
 import { barCount, bpmLabel, clickLengthInBeats, encodeScoreFile, parseMidiFilePiece, quarterNoteBpm, splitAtMiddleC } from './pieces'
+import type { Playback } from './playback'
+import { rangeStartBeat, referenceNotesInRange, type SessionConfig } from './sessionConfig'
 import type { Piece } from './types'
-import type { SessionConfig } from './sessionConfig'
 
 const MIN_BPM = 30
 const MAX_BPM = 240
 
 interface Props {
   pieces: Piece[]
+  playback: Playback
   onChangePieces: (pieces: Piece[]) => void
   onStartSession: (config: SessionConfig) => void
 }
 
-export default function PieceLibrary({ pieces, onChangePieces, onStartSession }: Props) {
+export default function PieceLibrary({ pieces, playback, onChangePieces, onStartSession }: Props) {
   const [selectedId, setSelectedId] = useState<string | null>(pieces[0]?.id ?? null)
   const [includedTracks, setIncludedTracks] = useState<number[]>(() => allTracks(pieces[0]))
   const [bpm, setBpm] = useState(pieces[0]?.defaultBpm ?? 100)
   const [barRange, setBarRange] = useState<[number, number]>(() => wholePiece(pieces[0]))
   const [loop, setLoop] = useState(false)
   const [waitForKey, setWaitForKey] = useState(true)
+  const [previewing, setPreviewing] = useState(false)
   const [importError, setImportError] = useState<string | null>(null)
+
+  // Hear the selected tracks and bars at the chosen tempo; stops on its own at the end.
+  const togglePreview = (piece: Piece) => {
+    if (previewing) {
+      playback.stop()
+      setPreviewing(false)
+      return
+    }
+    const config: SessionConfig = { piece, tracks: includedTracks, bpm, barRange, loop, waitForKey }
+    playback.start(referenceNotesInRange(config), quarterNoteBpm(bpm, piece.timeSignature), rangeStartBeat(config), () => setPreviewing(false))
+    setPreviewing(true)
+  }
+  useEffect(() => () => playback.stop(), [playback]) // leaving the screen stops the sound
 
   const selected = pieces.find((piece) => piece.id === selectedId) ?? null
 
   const selectPiece = (piece: Piece) => {
     if (piece.id === selectedId) return // re-clicking the current piece keeps the tempo, tracks and bars you set
+    playback.stop()
+    setPreviewing(false)
     setSelectedId(piece.id)
     setIncludedTracks(allTracks(piece))
     setBpm(piece.defaultBpm)
@@ -113,36 +131,15 @@ export default function PieceLibrary({ pieces, onChangePieces, onStartSession }:
                 <h2 className="text-lg font-semibold">{selected.title}</h2>
                 <p className="mt-0.5 text-sm text-ink-muted">
                   {barCount(selected)} bars · {selected.timeSignature.join('/')} ·{' '}
-                  {selected.score ? (
-                    <>
-                      score {selected.score.fileName}{' '}
-                      <button className="text-red-600 hover:underline" onClick={() => updatePiece({ ...selected, score: undefined })}>
-                        remove
-                      </button>
-                    </>
-                  ) : (
-                    <label className="cursor-pointer text-accent hover:underline">
-                      attach a score (.mxl / .musicxml)
-                      <input
-                        type="file"
-                        accept=".mxl,.musicxml,.xml"
-                        className="hidden"
-                        onChange={(e) => {
-                          const input = e.target
-                          const file = input.files?.[0]
-                          if (!file) return
-                          void attachScore(selected, file).finally(() => {
-                            input.value = '' // reset after the read, see PieceList
-                          })
-                        }}
-                      />
-                    </label>
-                  )}
+                  <ScoreAttachment piece={selected} onAttach={(file) => attachScore(selected, file)} onRemove={() => updatePiece({ ...selected, score: undefined })} />
                 </p>
               </div>
               <div className="flex items-center gap-3">
                 <button className="text-sm text-ink-muted hover:text-red-600" onClick={() => deletePiece(selected)}>
                   Delete
+                </button>
+                <button className="btn" disabled={includedTracks.length === 0} onClick={() => togglePreview(selected)}>
+                  {previewing ? '■ Stop' : '▶ Preview'}
                 </button>
                 <button
                   className="btn btn-primary px-5"
@@ -232,7 +229,7 @@ export default function PieceLibrary({ pieces, onChangePieces, onStartSession }:
             </div>
           </div>
 
-          <PiecePreview piece={selected} includedTracks={includedTracks} highlightBars={barRange} />
+          <PiecePreview piece={selected} includedTracks={includedTracks} highlightBars={barRange} positionBeat={previewing ? (nowMs) => playback.positionBeat(nowMs) : undefined} />
         </div>
       )}
     </div>

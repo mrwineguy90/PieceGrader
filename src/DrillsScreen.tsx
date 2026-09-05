@@ -3,7 +3,7 @@
 // click and tempo, or click a ladder step to load it; the generated piece
 // goes to the same session as an imported one.
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { drillTitle, FAMILIES, keysFor, parseDrillId, type DrillSpec, type Family, type Hands } from './drillCatalog'
 import { drillToPiece, generateDrill } from './drills'
 import { nextStep, type LadderStep } from './ladder'
@@ -11,8 +11,9 @@ import LadderView from './LadderView'
 import PiecePreview from './PiecePreview'
 import { barCount } from './pieces'
 import { keyLabel } from './pitches'
+import type { Playback } from './playback'
+import { referenceNotesInRange, type SessionConfig } from './sessionConfig'
 import type { Performance } from './types'
-import type { SessionConfig } from './sessionConfig'
 
 const MIN_BPM = 30
 const MAX_BPM = 240
@@ -24,10 +25,11 @@ const HANDS: { id: Hands; label: string }[] = [
 
 interface Props {
   performances: Performance[]
+  playback: Playback
   onStartSession: (config: SessionConfig) => void
 }
 
-export default function DrillsScreen({ performances, onStartSession }: Props) {
+export default function DrillsScreen({ performances, playback, onStartSession }: Props) {
   const [spec, setSpec] = useState<DrillSpec>({ family: 'scale', variant: 'major', key: 'C', hands: 'right', octaves: 1, notesPerClick: 1 })
   const [bpm, setBpm] = useState(60)
   const [waitForKey, setWaitForKey] = useState(true)
@@ -55,7 +57,24 @@ export default function DrillsScreen({ performances, onStartSession }: Props) {
 
   // Track 0 is the right hand, track 1 the left; the preview and the session show only the chosen hands.
   const tracks = spec.hands === 'right' ? [0] : spec.hands === 'left' ? [1] : [0, 1]
-  const start = (loop: boolean) => onStartSession({ piece, tracks, bpm, barRange: [1, barCount(piece)], loop, waitForKey })
+  const config = (loop: boolean): SessionConfig => ({ piece, tracks, bpm, barRange: [1, barCount(piece)], loop, waitForKey })
+  const start = (loop: boolean) => onStartSession(config(loop))
+
+  const [previewing, setPreviewing] = useState(false)
+  const togglePreview = () => {
+    if (previewing) {
+      playback.stop()
+      setPreviewing(false)
+      return
+    }
+    playback.start(referenceNotesInRange(config(false)), bpm, 0, () => setPreviewing(false)) // drills are in 4/4, so clicks are quarters
+    setPreviewing(true)
+  }
+  useEffect(() => {
+    playback.stop() // a new drill or tempo ends any preview in progress
+    setPreviewing(false)
+  }, [playback, piece, bpm])
+  useEffect(() => () => playback.stop(), [playback]) // leaving the screen stops the sound
 
   return (
     <div className="mt-6 space-y-4">
@@ -76,6 +95,9 @@ export default function DrillsScreen({ performances, onStartSession }: Props) {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <button className="btn" onClick={togglePreview}>
+              {previewing ? '■ Stop' : '▶ Preview'}
+            </button>
             <button className="btn" onClick={() => start(true)}>
               Loop
             </button>
@@ -156,7 +178,7 @@ export default function DrillsScreen({ performances, onStartSession }: Props) {
         </div>
       </div>
 
-      <PiecePreview piece={piece} includedTracks={tracks} />
+      <PiecePreview piece={piece} includedTracks={tracks} positionBeat={previewing ? (nowMs) => playback.positionBeat(nowMs) : undefined} />
 
       <LadderView performances={performances} selectedId={drill.id} onPick={pickStep} />
     </div>

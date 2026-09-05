@@ -12,9 +12,11 @@ import RecordScreen from './RecordScreen'
 import ResultsScreen from './ResultsScreen'
 import SessionScreen from './SessionScreen'
 import type { Score } from './scoring'
+import { Playback } from './playback'
 import { loadPerformances, loadPieces, savePerformances, savePieces } from './storage'
 import { Synth } from './synth'
 import type { Performance, Piece } from './types'
+import type { SessionConfig } from './sessionConfig'
 import { useMidiInput } from './useMidiInput'
 import { useSession, type SessionResult } from './useSession'
 
@@ -33,6 +35,7 @@ export default function App() {
   const [pieces, setPieces] = useState<Piece[]>(loadPieces)
   const [performances, setPerformances] = useState<Performance[]>(loadPerformances)
   const [synth] = useState(() => new Synth())
+  const [playback] = useState(() => new Playback(synth))
   const [soundOn, setSoundOn] = useState(false) // play the keyboard through this computer; off each launch until asked to remember it
 
   // While sound is on, every keyboard event also goes to the synth.
@@ -71,17 +74,21 @@ export default function App() {
     changePerformances([...performances, ...saved])
   }
   const session = useSession(midi, recordResult)
+  const startSession = (config: SessionConfig) => {
+    playback.stop() // a preview must not play over a session
+    session.start(config)
+  }
 
   const { status } = session
   let body
   if (status.phase === 'armed' || status.phase === 'count-in' || status.phase === 'recording') {
     body = <SessionScreen status={status} positionBeat={session.positionBeat} onStop={session.finish} />
   } else if (status.phase === 'done') {
-    body = <ResultsScreen result={status.result} onPractice={session.start} onBack={session.reset} />
+    body = <ResultsScreen result={status.result} onPractice={startSession} onBack={session.reset} />
   } else if (screen === 'pieces') {
-    body = <PieceLibrary pieces={pieces} onChangePieces={changePieces} onStartSession={session.start} />
+    body = <PieceLibrary pieces={pieces} playback={playback} onChangePieces={changePieces} onStartSession={startSession} />
   } else if (screen === 'drills') {
-    body = <DrillsScreen performances={performances} onStartSession={session.start} />
+    body = <DrillsScreen performances={performances} playback={playback} onStartSession={startSession} />
   } else if (screen === 'history') {
     body = (
       <HistoryScreen
