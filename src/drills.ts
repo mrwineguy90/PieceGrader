@@ -26,10 +26,28 @@ export interface Drill {
 
 const BEATS_PER_BAR = 4 // every drill is written in 4/4
 const DEFAULT_BPM = 60
+// A two-bar scale proves nothing: every drill is repeated back to back until
+// it is at least this long, and graded as one pass. (Hanon is longer anyway.)
+const MIN_DRILL_BARS = 12
 
 export function generateDrill(spec: DrillSpec): Drill {
   const kindForKey: ScaleKind = spec.variant === 'minor' ? 'harmonic-minor' : spec.family === 'hanon' ? 'major' : (spec.variant as ScaleKind)
-  return { spec, id: drillId(spec), title: drillTitle(spec), keyFifths: keyFifths(kindForKey, spec.key), notes: buildNotes(spec) }
+  return { spec, id: drillId(spec), title: drillTitle(spec), keyFifths: keyFifths(kindForKey, spec.key), notes: repeatShortDrill(buildNotes(spec)) }
+}
+
+// Each repetition starts on the bar line after the previous one ends (the
+// last note is already held to the end of its bar, so they join cleanly).
+function repeatShortDrill(notes: DrillNote[]): DrillNote[] {
+  const lastBeat = Math.max(0, ...notes.map((note) => note.startBeat + note.durationBeats))
+  const bars = Math.ceil(lastBeat / BEATS_PER_BAR)
+  if (bars === 0 || bars >= MIN_DRILL_BARS) return notes
+  const repetitions = Math.ceil(MIN_DRILL_BARS / bars)
+  const repeated: DrillNote[] = []
+  for (let repetition = 0; repetition < repetitions; repetition++) {
+    const offset = repetition * bars * BEATS_PER_BAR
+    repeated.push(...notes.map((note) => ({ ...note, startBeat: note.startBeat + offset })))
+  }
+  return repeated
 }
 
 // Right hand starts at the tonic in octave 4 (3 for four-octave drills so the

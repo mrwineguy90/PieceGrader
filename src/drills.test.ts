@@ -54,9 +54,11 @@ describe('spelling', () => {
 describe('generateDrill', () => {
   it('lays a one-octave scale out in quarters with the top note once and the last note held', () => {
     const drill = generateDrill(spec({}))
-    expect(drill.notes.map((note) => note.midi)).toEqual([60, 62, 64, 65, 67, 69, 71, 72, 71, 69, 67, 65, 64, 62, 60])
-    expect(drill.notes.map((note) => note.startBeat)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14])
-    expect(drill.notes[14].durationBeats).toBe(2) // beat 14 of a 4/4 bar: half note to the bar line
+    const first = drill.notes.slice(0, 15) // the first of the repetitions
+    expect(first.map((note) => note.midi)).toEqual([60, 62, 64, 65, 67, 69, 71, 72, 71, 69, 67, 65, 64, 62, 60])
+    expect(first.map((note) => note.startBeat)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14])
+    expect(first[14].durationBeats).toBe(2) // beat 14 of a 4/4 bar: half note to the bar line
+    expect(drill.notes[15].startBeat).toBe(16) // the next repetition starts on the following bar line
     expect(drill.notes.every((note) => note.hand === 0)).toBe(true)
   })
 
@@ -79,13 +81,13 @@ describe('generateDrill', () => {
   })
 
   it('arpeggios, broken chords, five-finger patterns and cadences use the triad', () => {
-    expect(generateDrill(spec({ family: 'arpeggio', variant: 'minor', key: 'A', octaves: 2 })).notes.map((n) => n.midi)).toEqual([
+    expect(generateDrill(spec({ family: 'arpeggio', variant: 'minor', key: 'A', octaves: 2 })).notes.slice(0, 13).map((n) => n.midi)).toEqual([
       69, 72, 76, 81, 84, 88, 93, 88, 84, 81, 76, 72, 69,
     ])
     expect(generateDrill(spec({ family: 'broken' })).notes.slice(0, 9).map((n) => n.midi)).toEqual([60, 64, 67, 64, 67, 72, 67, 72, 76])
     const fiveFinger = generateDrill(spec({ family: 'five-finger', variant: 'minor', key: 'D' }))
     expect(fiveFinger.notes.slice(0, 5).map((n) => n.midi)).toEqual([62, 64, 65, 67, 69])
-    expect(fiveFinger.notes.slice(9).map((n) => [n.midi, n.startBeat])).toEqual([
+    expect(fiveFinger.notes.slice(9, 12).map((n) => [n.midi, n.startBeat])).toEqual([
       [62, 9],
       [65, 9],
       [69, 9],
@@ -95,6 +97,20 @@ describe('generateDrill', () => {
     expect(chordAt(0)).toEqual([48, 60, 64, 67]) // C3 + C E G
     expect(chordAt(2)).toEqual([53, 60, 65, 69]) // F3 + C F A
     expect(chordAt(4)).toEqual([55, 59, 62, 67]) // G3 + B D G
+  })
+
+  it('repeats every drill until it is at least twelve bars', () => {
+    // One octave in eighths is two bars: six repetitions make twelve.
+    const short = generateDrill(spec({ notesPerClick: 2 }))
+    expect(short.notes.length).toBe(15 * 6)
+    expect(short.notes.filter((note) => note.midi === 60 && note.startBeat % 8 === 0).length).toBe(6) // a fresh start every two bars
+    expect(barCount(drillToPiece(short))).toBe(12)
+    // Cadence: two bars of half notes → six times.
+    expect(barCount(drillToPiece(generateDrill(spec({ family: 'cadence', hands: 'both' }))))).toBe(12)
+    // One octave in quarters is four bars → three times.
+    expect(generateDrill(spec({})).notes.length).toBe(15 * 3)
+    // Hanon is long (29 groups of sixteenths, two per bar): left alone.
+    expect(barCount(drillToPiece(generateDrill(spec({ family: 'hanon', variant: '1', hands: 'both', notesPerClick: 4 }))))).toBe(15)
   })
 
   it('four-octave drills start an octave lower so they stay on the keyboard', () => {
@@ -156,7 +172,7 @@ describe('ids and pieces', () => {
     expect(piece.title).toBe('F♯ harmonic minor scale · 2 octaves · hands together · eighths')
     expect(piece.source).toBe('drill')
     expect(piece.timeSignature).toEqual([4, 4])
-    expect(barCount(piece)).toBe(4)
+    expect(barCount(piece)).toBe(12) // two octaves in eighths is four bars, repeated three times
     expect(piece.score?.fileName.endsWith('.musicxml')).toBe(true)
   })
 })

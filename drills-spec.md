@@ -20,7 +20,7 @@ Drills are **never stored**. Each has a deterministic id that encodes its parame
 | Cadences | I–IV–V–I | Blocked chords, both hands. |
 | Hanon | exercises 1–20 | Public domain; patterns taken from an IMSLP edition and checked, not typed from memory. Hands together an octave apart. |
 
-Common parameters: key (12), hands (right, left, both = two tracks an octave apart), octaves, notes per click (1, 2, 4), tempo. Time signature 4/4 for everything except where a pattern needs otherwise.
+Common parameters: key (12), hands (right, left, both = two tracks an octave apart), octaves, notes per click (1, 2, 4), tempo. Time signature 4/4 for everything except where a pattern needs otherwise. Every drill repeats back to back until it is at least 12 bars, graded as one pass *(added 2026-09-05)*.
 
 Spelling: scale degrees give letter names; chromatic uses sharps going up and flats coming down; key signatures are written into the MusicXML so the page looks like a syllabus.
 

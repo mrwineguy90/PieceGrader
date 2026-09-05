@@ -47,13 +47,15 @@ describe('drillToMusicXml', () => {
 
   it('shows an accidental once per bar and a natural when a note reverts', () => {
     // A harmonic minor: G♯ is not in the key signature (0 flats/sharps), so it needs a sharp.
-    // In sixteenths the whole scale fits one bar, so G♯5 up and G♯5 down share a bar: one sharp.
+    // In sixteenths the whole scale fits one bar, so G♯5 up and G♯5 down share a bar: one sharp
+    // per bar (short drills repeat, ten bars here).
     const xml = drillToMusicXml(generateDrill(spec({ variant: 'harmonic-minor', key: 'A', notesPerClick: 4 })))
-    const gSharps = xml.match(/<step>G<\/step><alter>1<\/alter><octave>5<\/octave>.*?<accidental>sharp<\/accidental>/g) ?? []
+    const firstBar = xml.split('<measure number="2">')[0]
+    const gSharps = firstBar.match(/<step>G<\/step><alter>1<\/alter><octave>5<\/octave>.*?<accidental>sharp<\/accidental>/g) ?? []
     expect(gSharps.length).toBe(1)
-    // In eighths they fall in different bars: two sharps.
+    // In eighths they fall in different bars: two sharps per two-bar repetition, six repetitions.
     const eighths = drillToMusicXml(generateDrill(spec({ variant: 'harmonic-minor', key: 'A', notesPerClick: 2 })))
-    expect((eighths.match(/<accidental>sharp<\/accidental>/g) ?? []).length).toBe(2)
+    expect((eighths.match(/<accidental>sharp<\/accidental>/g) ?? []).length).toBe(12)
     // Melodic minor: F♯ up, F natural down, in the same bar → natural sign shown.
     const melodic = drillToMusicXml(generateDrill(spec({ variant: 'melodic-minor', key: 'A', notesPerClick: 4 })))
     expect(melodic).toContain('<accidental>natural</accidental>')
@@ -61,7 +63,7 @@ describe('drillToMusicXml', () => {
 
   it('writes chords with <chord/> on the notes after the first', () => {
     const xml = drillToMusicXml(generateDrill(spec({ family: 'cadence', hands: 'both' })))
-    expect((xml.match(/<chord\/>/g) ?? []).length).toBe(8) // four 3-note chords in the right hand
+    expect((xml.match(/<chord\/>/g) ?? []).length).toBe(8 * 6) // four 3-note chords in the right hand, repeated to twelve bars
     expect(xml).toContain('<type>half</type>')
   })
 
