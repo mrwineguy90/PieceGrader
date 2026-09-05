@@ -3,7 +3,7 @@
 // survive switching screens; a running or finished session takes over the
 // page until it is dismissed.
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import DrillsScreen from './DrillsScreen'
 import HistoryScreen from './HistoryScreen'
 import MidiCheck from './MidiCheck'
@@ -13,6 +13,7 @@ import ResultsScreen from './ResultsScreen'
 import SessionScreen from './SessionScreen'
 import type { Score } from './scoring'
 import { loadPerformances, loadPieces, savePerformances, savePieces } from './storage'
+import { Synth } from './synth'
 import type { Performance, Piece } from './types'
 import { useMidiInput } from './useMidiInput'
 import { useSession, type SessionResult } from './useSession'
@@ -31,6 +32,18 @@ export default function App() {
   const [screen, setScreen] = useState<Screen>('pieces')
   const [pieces, setPieces] = useState<Piece[]>(loadPieces)
   const [performances, setPerformances] = useState<Performance[]>(loadPerformances)
+  const [synth] = useState(() => new Synth())
+  const [soundOn, setSoundOn] = useState(false) // play the keyboard through this computer; off each launch until asked to remember it
+
+  // While sound is on, every keyboard event also goes to the synth.
+  useEffect(() => {
+    if (!soundOn) return
+    const unsubscribe = midi.subscribe((event) => synth.handle(event))
+    return () => {
+      unsubscribe()
+      synth.allOff()
+    }
+  }, [soundOn, midi.subscribe, synth])
 
   const changePieces = (next: Piece[]) => {
     setPieces(next)
@@ -89,7 +102,12 @@ export default function App() {
       />
     )
   } else {
-    body = <MidiCheck midi={midi} />
+    body = <MidiCheck midi={midi} soundLatencyMs={soundOn ? synth.latencyMs() : null} />
+  }
+
+  const toggleSound = (on: boolean) => {
+    if (on) synth.enable() // inside the click, so the browser allows audio
+    setSoundOn(on)
   }
 
   return (
@@ -109,6 +127,10 @@ export default function App() {
             ))}
           </nav>
         )}
+        <label className="ml-auto flex items-center gap-2 text-sm text-ink-muted" title="Hear the keyboard through this computer's audio (use wired headphones; Bluetooth adds too much delay)">
+          <input type="checkbox" checked={soundOn} onChange={(e) => toggleSound(e.target.checked)} />
+          Play notes through this computer
+        </label>
       </div>
       {body}
     </main>

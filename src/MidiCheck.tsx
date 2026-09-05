@@ -12,7 +12,7 @@ const MIN_BPM = 30
 const MAX_BPM = 240
 const RECENT_NOTE_MS = 3000 // how long the "receiving" light stays green after a note
 
-export default function MidiCheck({ midi }: { midi: MidiInputState }) {
+export default function MidiCheck({ midi, soundLatencyMs }: { midi: MidiInputState; soundLatencyMs: number | null }) {
   const [metronome] = useState(() => new Metronome())
   const [bpm, setBpm] = useState(80)
   const [timeSignature, setTimeSignature] = useState<[number, number]>([4, 4])
@@ -52,6 +52,12 @@ export default function MidiCheck({ midi }: { midi: MidiInputState }) {
       <section className="card">
         <h2 className="font-medium">Keyboard</h2>
         <MidiStatusLine midi={midi} nowMs={nowMs} />
+        {soundLatencyMs !== null && (
+          <p className="mt-1 text-sm text-ink-muted">
+            Computer sound is on: about {soundLatencyMs} ms from key to ear on this output. Under 10 is unnoticeable, 10–20 fine, above 30 lags. Bluetooth
+            headphones will read far higher; use wired.
+          </p>
+        )}
         {midi.inputs.length > 0 && (
           <select
             className="field mt-2"
