@@ -97,15 +97,15 @@ export default function App() {
   }
 
   return (
-    <main className="mx-auto max-w-6xl p-6 text-gray-900">
+    <main className="mx-auto max-w-6xl p-6">
       <div className="flex items-baseline gap-6">
-        <h1 className="text-2xl font-semibold">Piece Grader</h1>
+        <h1 className="text-xl font-semibold tracking-tight">Piece Grader</h1>
         {status.phase === 'idle' && (
           <nav className="flex gap-1 text-sm">
             {TABS.map((tab) => (
               <button
                 key={tab.screen}
-                className={`rounded px-3 py-1 ${screen === tab.screen ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-100'}`}
+                className={`rounded-md px-3 py-1 font-medium ${screen === tab.screen ? 'bg-accent text-accent-ink' : 'text-ink-muted hover:bg-line/60 hover:text-ink'}`}
                 onClick={() => setScreen(tab.screen)}
               >
                 {tab.label}

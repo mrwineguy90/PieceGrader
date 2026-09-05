@@ -7,7 +7,7 @@ import { drillTitle, parseDrillId } from './drillCatalog'
 import { isLevelOpen, LADDER, nextStep, PASS_ON_TIME, PASS_PITCH, passedCount, stepStatus, type LadderStep, type StepStatus } from './ladder'
 import type { Performance } from './types'
 
-const STATUS_COLORS: Record<StepStatus, string> = { passed: 'bg-green-500', tried: 'bg-yellow-400', untried: 'bg-gray-300' }
+const STATUS_COLORS: Record<StepStatus, string> = { passed: 'bg-green-500', tried: 'bg-yellow-400', untried: 'bg-line' }
 
 interface Props {
   performances: Performance[]
@@ -20,10 +20,10 @@ export default function LadderView({ performances, onPick }: Props) {
   const label = (step: LadderStep) => `${drillTitle(parseDrillId(step.id)!)} · ♩ = ${step.bpm}`
 
   return (
-    <div className="rounded border border-gray-200 p-4">
+    <div className="card">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 className="font-medium">Progression</h2>
-        <span className="text-xs text-gray-500">
+        <span className="text-xs text-ink-muted">
           A step passes at {Math.round(PASS_PITCH * 100)}% pitch and {Math.round(PASS_ON_TIME * 100)}% on time, at or above its tempo.
         </span>
       </div>
@@ -31,7 +31,7 @@ export default function LadderView({ performances, onPick }: Props) {
       {next ? (
         <p className="mt-2 text-sm">
           Next up: <span className="font-medium">{label(next.step)}</span>{' '}
-          <button className="ml-2 rounded border border-gray-300 px-2 py-0.5 hover:bg-gray-100" onClick={() => onPick(next.step)}>
+          <button className="btn ml-2 px-2 py-0.5" onClick={() => onPick(next.step)}>
             Load
           </button>
         </p>
@@ -45,7 +45,7 @@ export default function LadderView({ performances, onPick }: Props) {
           const passed = passedCount(level, performances)
           if (!open) {
             return (
-              <li key={level.name} className="text-sm text-gray-400">
+              <li key={level.name} className="text-sm text-ink-muted/70">
                 {level.name} · locked until {LADDER[level.opensAfter].name} is complete
               </li>
             )
@@ -53,10 +53,10 @@ export default function LadderView({ performances, onPick }: Props) {
           const expanded = openLevel === levelIndex
           return (
             <li key={level.name} className="text-sm">
-              <button className="flex w-full items-baseline gap-3 rounded px-1 py-0.5 text-left hover:bg-gray-100" onClick={() => setOpenLevel(expanded ? null : levelIndex)}>
+              <button className="flex w-full items-baseline gap-3 rounded px-1 py-0.5 text-left hover:bg-line/60" onClick={() => setOpenLevel(expanded ? null : levelIndex)}>
                 <span className="font-medium">{level.name}</span>
-                <span className="text-gray-500">{level.description}</span>
-                <span className="ml-auto tabular-nums text-gray-500">
+                <span className="text-ink-muted">{level.description}</span>
+                <span className="ml-auto tabular-nums text-ink-muted">
                   {passed} / {level.steps.length}
                 </span>
               </button>
@@ -68,11 +68,11 @@ export default function LadderView({ performances, onPick }: Props) {
                     return (
                       <li key={step.id}>
                         <button
-                          className={`flex w-full items-center gap-2 rounded px-1 py-0.5 text-left hover:bg-gray-100 ${isNext ? 'bg-blue-50' : ''}`}
+                          className={`flex w-full items-center gap-2 rounded px-1 py-0.5 text-left hover:bg-line/60 ${isNext ? 'bg-accent-soft' : ''}`}
                           onClick={() => onPick(step)}
                         >
                           <span className={`inline-block h-2.5 w-2.5 shrink-0 rounded-full ${STATUS_COLORS[status]}`} />
-                          <span className={status === 'passed' ? 'text-gray-500' : ''}>{label(step)}</span>
+                          <span className={status === 'passed' ? 'text-ink-muted' : ''}>{label(step)}</span>
                         </button>
                       </li>
                     )

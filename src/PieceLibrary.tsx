@@ -108,7 +108,7 @@ export default function PieceLibrary({ pieces, onChangePieces, onStartSession }:
             <h2 className="text-lg font-medium">{selected.title}</h2>
             <div className="flex items-center gap-4 text-sm">
               {selected.score ? (
-                <span className="text-gray-500">
+                <span className="text-ink-muted">
                   Score: {selected.score.fileName}{' '}
                   <button className="text-red-600 hover:underline" onClick={() => updatePiece({ ...selected, score: undefined })}>
                     remove
@@ -144,7 +144,7 @@ export default function PieceLibrary({ pieces, onChangePieces, onStartSession }:
               <label key={track} className="flex items-center gap-2 text-sm">
                 <input type="checkbox" checked={includedTracks.includes(track)} onChange={() => toggleTrack(track)} />
                 <input
-                  className="w-32 rounded border border-gray-300 px-2 py-0.5"
+                  className="field w-32 py-0.5"
                   value={name}
                   onChange={(e) => {
                     const trackNames = [...selected.trackNames]
@@ -188,7 +188,7 @@ export default function PieceLibrary({ pieces, onChangePieces, onStartSession }:
               type="number"
               min={1}
               max={barCount(selected)}
-              className="w-16 rounded border border-gray-300 px-2 py-1"
+              className="field w-16"
               value={barRange[0]}
               onChange={(e) => changeBarRange(selected, Number(e.target.value), barRange[1])}
             />
@@ -197,7 +197,7 @@ export default function PieceLibrary({ pieces, onChangePieces, onStartSession }:
               type="number"
               min={1}
               max={barCount(selected)}
-              className="w-16 rounded border border-gray-300 px-2 py-1"
+              className="field w-16"
               value={barRange[1]}
               onChange={(e) => changeBarRange(selected, barRange[0], Number(e.target.value))}
             />
@@ -209,7 +209,7 @@ export default function PieceLibrary({ pieces, onChangePieces, onStartSession }:
               Loop (repeat with a one-bar gap, each pass graded)
             </label>
             <button
-              className={`${buttonClass} ml-6 bg-green-100 font-medium disabled:opacity-40`}
+              className="btn btn-primary ml-6"
               disabled={includedTracks.length === 0}
               onClick={() => onStartSession({ piece: selected, tracks: includedTracks, bpm, barRange, loop })}
             >
@@ -217,7 +217,7 @@ export default function PieceLibrary({ pieces, onChangePieces, onStartSession }:
             </button>
           </div>
 
-          <label className="mt-3 flex items-center gap-2 text-sm text-gray-600">
+          <label className="mt-3 flex items-center gap-2 text-sm text-ink-muted">
             Zoom
             <input type="range" min={8} max={80} value={pixelsPerBeat} onChange={(e) => setPixelsPerBeat(Number(e.target.value))} />
           </label>
@@ -226,7 +226,7 @@ export default function PieceLibrary({ pieces, onChangePieces, onStartSession }:
           </div>
 
           {selected.score && (
-            <div className="mt-4 rounded border border-gray-300 p-2">
+            <div className="card mt-4 p-2">
               <ScoreView score={selected.score} zoom={PREVIEW_SCORE_ZOOM} maxHeight="50vh" />
             </div>
           )}
@@ -244,4 +244,4 @@ function wholePiece(piece: Piece | undefined): [number, number] {
   return [1, piece ? barCount(piece) : 1]
 }
 
-const buttonClass = 'rounded border border-gray-300 px-3 py-1 hover:bg-gray-100'
+const buttonClass = 'btn'

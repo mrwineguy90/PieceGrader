@@ -38,7 +38,7 @@ export default function SessionScreen({ status, positionBeat, onStop }: Props) {
 
   return (
     <div className="mt-4 flex flex-col items-center gap-4">
-      <p className="text-gray-500">
+      <p className="text-ink-muted">
         {config.piece.title} · {config.piece.timeSignature.join('/')} · {bpmLabel(config.bpm, config.piece.timeSignature)} · {trackNames} ·
         bars {config.barRange[0]}–{config.barRange[1]}
         {config.loop && ' · loop'}
@@ -46,26 +46,26 @@ export default function SessionScreen({ status, positionBeat, onStop }: Props) {
 
       <div className="flex items-center gap-10">
         <div className="text-6xl font-semibold tabular-nums">
-          {status.phase === 'count-in' ? <span className="text-gray-400">Ready</span> : `Bar ${status.bar}`}
+          {status.phase === 'count-in' ? <span className="text-ink-muted">Ready</span> : `Bar ${status.bar}`}
         </div>
         <div className="flex gap-4">
           {Array.from({ length: clicksPerBar }, (_, i) => {
             const active = status.beatInBar === i + 1
-            const color = !active ? 'bg-gray-200' : i === 0 ? 'bg-red-500' : 'bg-gray-800'
+            const color = !active ? 'bg-line' : i === 0 ? 'bg-red-500' : 'bg-accent'
             return <span key={i} className={`inline-block h-8 w-8 rounded-full ${color}`} />
           })}
         </div>
         {config.loop && (
-          <p className="text-lg tabular-nums text-gray-600">
+          <p className="text-lg tabular-nums text-ink-muted">
             Pass {status.pass}
             {lastScore && ` · last: ${Math.round(lastScore.pitchAccuracy * 100)}% pitch, ${Math.round(lastScore.timing.onTime * 100)}% on time`}
           </p>
         )}
-        <button className="rounded border border-gray-300 px-4 py-2 hover:bg-gray-100" onClick={onStop}>
+        <button className="btn px-4 py-2" onClick={onStop}>
           Stop (Esc)
         </button>
         {config.piece.score && (
-          <label className="flex items-center gap-2 text-sm text-gray-600">
+          <label className="flex items-center gap-2 text-sm text-ink-muted">
             Zoom
             <input type="range" min={0.5} max={1.3} step={0.05} value={scoreZoom} onChange={(e) => setScoreZoom(Number(e.target.value))} />
           </label>
@@ -73,7 +73,7 @@ export default function SessionScreen({ status, positionBeat, onStop }: Props) {
       </div>
 
       {config.piece.score ? (
-        <div className="w-full rounded border border-gray-300 p-2">
+        <div className="card w-full p-2">
           <ScoreView score={config.piece.score} positionBeat={playheadBeat} zoom={scoreZoom} maxHeight="75vh" />
         </div>
       ) : (

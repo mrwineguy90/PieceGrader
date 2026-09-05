@@ -13,9 +13,9 @@ const ROW_HEIGHT = 8
 const HEADER_HEIGHT = 18
 const LABEL_GUTTER = 32
 const PITCH_PADDING = 2 // rows of space above and below the piece's range
-const TRACK_COLORS = ['#3b82f6', '#f59e0b', '#8b5cf6', '#10b981']
-const EXCLUDED_COLOR = '#e5e7eb'
-const REFERENCE_COLOR = '#9ca3af' // reference under an overlay
+const TRACK_COLORS = ['#6366f1', '#f59e0b', '#ec4899', '#10b981'] // right hand indigo, left hand amber
+const EXCLUDED_COLOR = 'var(--roll-grid)'
+const REFERENCE_COLOR = 'var(--roll-grid-strong)' // reference under an overlay
 const OFF_TIME_COLOR = '#eab308' // correct pitch, more than ON_TIME_MS off
 const RESULT_COLORS: Record<NoteResult['kind'], string> = {
   correct: '#22c55e',
@@ -71,8 +71,8 @@ export default function PianoRoll({ piece, includedTracks, pixelsPerBeat, overla
     const y = yForMidi(midi) + ROW_HEIGHT
     octaveLines.push(
       <g key={midi}>
-        <line x1={LABEL_GUTTER} x2={width} y1={y} y2={y} stroke={midi === 60 ? '#9ca3af' : '#e5e7eb'} />
-        <text x={4} y={y - 1} fontSize={9} fill="#6b7280">
+        <line x1={LABEL_GUTTER} x2={width} y1={y} y2={y} stroke={midi === 60 ? 'var(--roll-grid-strong)' : 'var(--roll-grid)'} />
+        <text x={4} y={y - 1} fontSize={9} fill="var(--ink-muted)">
           C{midi / 12 - 1}
         </text>
       </g>,
@@ -85,9 +85,9 @@ export default function PianoRoll({ piece, includedTracks, pixelsPerBeat, overla
     const x = xForBeat(beat)
     beatLines.push(
       <g key={beat}>
-        <line x1={x} x2={x} y1={isBarLine ? 0 : HEADER_HEIGHT} y2={height} stroke={isBarLine ? '#6b7280' : '#e5e7eb'} />
+        <line x1={x} x2={x} y1={isBarLine ? 0 : HEADER_HEIGHT} y2={height} stroke={isBarLine ? 'var(--roll-grid-strong)' : 'var(--roll-grid)'} />
         {isBarLine && beat < bars * quartersPerBar && (
-          <text x={x + 3} y={12} fontSize={10} fill="#374151">
+          <text x={x + 3} y={12} fontSize={10} fill="var(--ink)">
             {beat / quartersPerBar + 1}
           </text>
         )}
@@ -145,7 +145,7 @@ export default function PianoRoll({ piece, includedTracks, pixelsPerBeat, overla
     : []
 
   return (
-    <div ref={scrollBox} className="overflow-x-auto rounded border border-gray-300 bg-white">
+    <div ref={scrollBox} className="overflow-x-auto rounded-lg border border-line bg-surface-raised">
       <svg width={width} height={height} className="block">
         {octaveLines}
         {beatLines}
@@ -168,7 +168,7 @@ export default function PianoRoll({ piece, includedTracks, pixelsPerBeat, overla
             y={HEADER_HEIGHT}
             width={(toBar - fromBar) * quartersPerBar * pixelsPerBeat}
             height={height - HEADER_HEIGHT}
-            fill="#ffffff"
+            fill="var(--surface-raised)"
             opacity={0.7}
           />
         ))}

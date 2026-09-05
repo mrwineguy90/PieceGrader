@@ -23,13 +23,13 @@ export default function HistoryScreen({ pieces, performances, onDelete }: Props)
   const piece = pieces.find((each) => each.id === pieceId) ?? null
   const history = performances.filter((p) => p.pieceId === pieceId) // oldest first, as stored
 
-  if (pieces.length === 0) return <p className="mt-6 text-sm text-gray-500">No pieces yet.</p>
+  if (pieces.length === 0) return <p className="mt-6 text-sm text-ink-muted">No pieces yet.</p>
 
   return (
     <div className="mt-6">
       <label className="text-sm">
         Piece{' '}
-        <select className="rounded border border-gray-300 px-2 py-1" value={pieceId ?? ''} onChange={(e) => setPieceId(e.target.value)}>
+        <select className="field" value={pieceId ?? ''} onChange={(e) => setPieceId(e.target.value)}>
           {pieces.map((each) => (
             <option key={each.id} value={each.id}>
               {each.title}
@@ -38,13 +38,13 @@ export default function HistoryScreen({ pieces, performances, onDelete }: Props)
         </select>
       </label>
 
-      {piece && history.length === 0 && <p className="mt-4 text-sm text-gray-500">No performances of this piece yet.</p>}
+      {piece && history.length === 0 && <p className="mt-4 text-sm text-ink-muted">No performances of this piece yet.</p>}
 
       {piece && history.length > 0 && (
         <>
           <TrendChart history={history} />
           <table className="mt-4 text-sm tabular-nums">
-            <thead className="text-left text-gray-500">
+            <thead className="text-left text-ink-muted">
               <tr>
                 {['When', 'Tempo', 'Bars', 'Tracks', 'Pitch', 'On time', 'Wrong', 'Missed', 'Extra', ''].map((heading, index) => (
                   <th key={index} className="pr-4 font-normal">
@@ -96,7 +96,7 @@ function TrendChart({ history }: { history: Performance[] }) {
 
   return (
     <div className="mt-4">
-      <div className="flex gap-6 text-sm text-gray-600">
+      <div className="flex gap-6 text-sm text-ink-muted">
         {series.map((s) => (
           <span key={s.label} className="flex items-center gap-2">
             <span className="inline-block h-3 w-3 rounded-full" style={{ background: s.color }} />
@@ -108,16 +108,16 @@ function TrendChart({ history }: { history: Performance[] }) {
         <svg width={CHART_WIDTH} height={CHART_HEIGHT} className="mt-1 block">
           {[0, 0.5, 1].map((fraction) => (
             <g key={fraction}>
-              <line x1={CHART_PADDING.left} x2={CHART_WIDTH - CHART_PADDING.right} y1={yFor(fraction)} y2={yFor(fraction)} stroke="#e5e7eb" />
-              <text x={CHART_PADDING.left - 6} y={yFor(fraction) + 4} fontSize={11} textAnchor="end" fill="#6b7280">
+              <line x1={CHART_PADDING.left} x2={CHART_WIDTH - CHART_PADDING.right} y1={yFor(fraction)} y2={yFor(fraction)} stroke="var(--roll-grid)" />
+              <text x={CHART_PADDING.left - 6} y={yFor(fraction) + 4} fontSize={11} textAnchor="end" fill="var(--ink-muted)">
                 {fraction * 100}%
               </text>
             </g>
           ))}
-          <text x={CHART_PADDING.left} y={CHART_HEIGHT - 8} fontSize={11} fill="#6b7280">
+          <text x={CHART_PADDING.left} y={CHART_HEIGHT - 8} fontSize={11} fill="var(--ink-muted)">
             oldest
           </text>
-          <text x={CHART_WIDTH - CHART_PADDING.right} y={CHART_HEIGHT - 8} fontSize={11} textAnchor="end" fill="#6b7280">
+          <text x={CHART_WIDTH - CHART_PADDING.right} y={CHART_HEIGHT - 8} fontSize={11} textAnchor="end" fill="var(--ink-muted)">
             latest
           </text>
           {series.map((s) => (
@@ -131,7 +131,7 @@ function TrendChart({ history }: { history: Performance[] }) {
                 />
               )}
               {history.map((p, index) => (
-                <circle key={p.id} cx={xFor(index)} cy={yFor(s.value(p))} r={4} fill={s.color} stroke="#ffffff" strokeWidth={2}>
+                <circle key={p.id} cx={xFor(index)} cy={yFor(s.value(p))} r={4} fill={s.color} stroke="var(--surface-raised)" strokeWidth={2}>
                   <title>
                     {new Date(p.playedAt).toLocaleString()}: {s.label} {percent(s.value(p))}
                   </title>

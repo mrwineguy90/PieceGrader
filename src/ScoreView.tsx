@@ -43,6 +43,16 @@ export default function ScoreView({ score, positionBeat, zoom, maxHeight }: Prop
   const lastScrolledTop = useRef<number | null>(null)
   const [ready, setReady] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [dark, setDark] = useState(() => window.matchMedia('(prefers-color-scheme: dark)').matches)
+
+  // Ink colour follows the OS theme (the page background stays transparent so
+  // the card shows through); reload the score if the theme changes mid-session.
+  useEffect(() => {
+    const query = window.matchMedia('(prefers-color-scheme: dark)')
+    const onChange = (event: MediaQueryListEvent) => setDark(event.matches)
+    query.addEventListener('change', onChange)
+    return () => query.removeEventListener('change', onChange)
+  }, [])
 
   useEffect(() => {
     const element = container.current
@@ -55,6 +65,7 @@ export default function ScoreView({ score, positionBeat, zoom, maxHeight }: Prop
       drawTitle: false,
       drawPartNames: false,
       autoBeam: true, // generated drill notation carries no beams; real scores keep their own
+      defaultColorMusic: dark ? '#f4f4f5' : '#18181b',
       followCursor: false,
       cursorsOptions: [{ type: CursorType.Standard, color: '#000000', alpha: 0, follow: false }],
     })
@@ -77,7 +88,7 @@ export default function ScoreView({ score, positionBeat, zoom, maxHeight }: Prop
       osmd.current = null
       instance.clear()
     }
-  }, [score.base64]) // only reload when the file changes; zoom and position are handled below
+  }, [score.base64, dark]) // only reload when the file or theme changes; zoom and position are handled below
 
   useEffect(() => {
     const instance = osmd.current
@@ -108,7 +119,7 @@ export default function ScoreView({ score, positionBeat, zoom, maxHeight }: Prop
   return (
     <div ref={scrollBox} className="overflow-y-auto" style={{ maxHeight }}>
       {error && <p className="text-sm text-red-600">{error}</p>}
-      {!ready && !error && <p className="text-sm text-gray-500">Loading score…</p>}
+      {!ready && !error && <p className="text-sm text-ink-muted">Loading score…</p>}
       <div className="relative">
         <div ref={container} className="w-full" />
         <div ref={line} className="pointer-events-none absolute w-0.5 bg-red-500 opacity-70" style={{ display: 'none' }} />

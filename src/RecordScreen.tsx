@@ -79,12 +79,12 @@ export default function RecordScreen({ midi, onSave, onCancel }: Props) {
     <div className="mt-6 flex flex-col items-center gap-6">
       {!recording ? (
         <>
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-ink-muted">
             Play the piece cleanly and slowly with the metronome. One bar of count-in, then recording starts on beat 1. Press Esc or Stop when done.
           </p>
           <div className="flex flex-wrap items-center gap-4 text-sm">
             <label className="flex items-center gap-2">
-              Title <input className="w-56 rounded border border-gray-300 px-2 py-1" value={title} onChange={(e) => setTitle(e.target.value)} />
+              Title <input className="field w-56" value={title} onChange={(e) => setTitle(e.target.value)} />
             </label>
             <label className="flex items-center gap-2">
               Time signature <TimeSignatureInput value={timeSignature} onChange={setTimeSignature} />
@@ -101,26 +101,26 @@ export default function RecordScreen({ midi, onSave, onCancel }: Props) {
             <button className={buttonClass} onClick={onCancel}>
               Cancel
             </button>
-            <button className={`${buttonClass} bg-red-100 font-medium`} onClick={start}>
+            <button className="btn btn-primary" onClick={start}>
               Record
             </button>
           </div>
         </>
       ) : (
         <>
-          <p className="text-gray-500">
+          <p className="text-ink-muted">
             Recording “{title}” · {timeSignature.join('/')} · {bpmLabel(bpm, timeSignature)}
           </p>
           <div className="flex items-center gap-10">
-            <div className="text-6xl font-semibold tabular-nums">{countingIn ? <span className="text-gray-400">Ready</span> : `Bar ${bar}`}</div>
+            <div className="text-6xl font-semibold tabular-nums">{countingIn ? <span className="text-ink-muted">Ready</span> : `Bar ${bar}`}</div>
             <div className="flex gap-4">
               {Array.from({ length: clicksPerBar }, (_, i) => {
                 const active = beat !== null && beat.index % clicksPerBar === i
-                const color = !active ? 'bg-gray-200' : i === 0 ? 'bg-red-500' : 'bg-gray-800'
+                const color = !active ? 'bg-line' : i === 0 ? 'bg-red-500' : 'bg-accent'
                 return <span key={i} className={`inline-block h-8 w-8 rounded-full ${color}`} />
               })}
             </div>
-            <span className="text-sm text-gray-500">{recorder.notes.length + recorder.activeNotes().length} notes</span>
+            <span className="text-sm text-ink-muted">{recorder.notes.length + recorder.activeNotes().length} notes</span>
           </div>
           <button className={buttonClass} onClick={stop}>
             Stop and save (Esc)
@@ -131,4 +131,4 @@ export default function RecordScreen({ midi, onSave, onCancel }: Props) {
   )
 }
 
-const buttonClass = 'rounded border border-gray-300 px-3 py-1 hover:bg-gray-100'
+const buttonClass = 'btn'

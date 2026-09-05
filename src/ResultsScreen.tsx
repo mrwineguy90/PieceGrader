@@ -36,7 +36,7 @@ export default function ResultsScreen({ result, onPractice, onBack }: Props) {
       <div className="flex items-baseline justify-between">
         <h2 className="text-lg font-medium">
           {config.piece.title}{' '}
-          <span className="text-sm font-normal text-gray-500">
+          <span className="text-sm font-normal text-ink-muted">
             {config.piece.timeSignature.join('/')} · {bpmLabel(config.bpm, config.piece.timeSignature)} · bars {config.barRange[0]}–
             {config.barRange[1]}
           </span>
@@ -45,7 +45,7 @@ export default function ResultsScreen({ result, onPractice, onBack }: Props) {
           <button className={buttonClass} onClick={onBack}>
             Back to pieces
           </button>
-          <button className={`${buttonClass} bg-green-100`} onClick={() => onPractice(config)}>
+          <button className="btn btn-primary" onClick={() => onPractice(config)}>
             {config.loop ? 'Loop again' : 'Practice again'}
           </button>
         </div>
@@ -56,7 +56,7 @@ export default function ResultsScreen({ result, onPractice, onBack }: Props) {
           {passes.map((each, index) => (
             <button
               key={index}
-              className={`rounded px-2 py-1 tabular-nums ${index === passIndex ? 'bg-gray-900 text-white' : 'bg-gray-100 hover:bg-gray-200'}`}
+              className={`rounded-md px-2 py-1 tabular-nums ${index === passIndex ? 'bg-accent text-accent-ink' : 'bg-line/60 hover:bg-line'}`}
               onClick={() => setPassIndex(index)}
             >
               Pass {index + 1} · {Math.round(each.score.pitchAccuracy * 100)}%
@@ -68,28 +68,28 @@ export default function ResultsScreen({ result, onPractice, onBack }: Props) {
       <div className="mt-4 flex flex-wrap items-end gap-8">
         <div>
           <div className="text-5xl font-semibold tabular-nums">{percent(score.pitchAccuracy)}</div>
-          <div className="text-sm text-gray-500">pitch accuracy</div>
+          <div className="text-sm text-ink-muted">pitch accuracy</div>
         </div>
         <Stat label="correct" value={score.correct} color="text-green-600" />
         <Stat label="wrong" value={score.wrong} color="text-red-600" />
-        <Stat label="missed" value={score.missed} color="text-gray-600" />
+        <Stat label="missed" value={score.missed} color="text-ink-muted" />
         <Stat label="extra" value={score.extra} color="text-red-600" />
-        <div className="text-sm text-gray-500">of {score.referenceCount} reference notes</div>
+        <div className="text-sm text-ink-muted">of {score.referenceCount} reference notes</div>
       </div>
 
       <div className="mt-4 flex flex-wrap items-end gap-8">
         <div>
           <div className="text-5xl font-semibold tabular-nums">{percent(score.timing.onTime)}</div>
-          <div className="text-sm text-gray-500">on time (±{ON_TIME_MS} ms)</div>
+          <div className="text-sm text-ink-muted">on time (±{ON_TIME_MS} ms)</div>
         </div>
-        <Stat label={`close (±${CLOSE_MS} ms)`} value={percent(score.timing.close)} color="text-gray-800" />
-        <Stat label="mean |deviation|" value={`${Math.round(score.timing.meanAbsDeviationMs)} ms`} color="text-gray-800" />
-        <Stat label="bias" value={biasLabel(score.timing.meanDeviationMs)} color="text-gray-800" />
-        <Stat label="evenness (gap error)" value={`${Math.round(score.timing.evennessMs)} ms`} color="text-gray-800" />
+        <Stat label={`close (±${CLOSE_MS} ms)`} value={percent(score.timing.close)} color="text-ink" />
+        <Stat label="mean |deviation|" value={`${Math.round(score.timing.meanAbsDeviationMs)} ms`} color="text-ink" />
+        <Stat label="bias" value={biasLabel(score.timing.meanDeviationMs)} color="text-ink" />
+        <Stat label="evenness (gap error)" value={`${Math.round(score.timing.evennessMs)} ms`} color="text-ink" />
       </div>
 
       {config.piece.source === 'drill' && (
-        <p className={`mt-3 text-sm ${meetsPassMark(score) ? 'text-green-700' : 'text-gray-500'}`}>
+        <p className={`mt-3 text-sm ${meetsPassMark(score) ? 'text-green-700' : 'text-ink-muted'}`}>
           {meetsPassMark(score) ? 'Meets the ladder pass mark' : 'Below the ladder pass mark'} ({Math.round(PASS_PITCH * 100)}% pitch,{' '}
           {Math.round(PASS_ON_TIME * 100)}% on time) at ♩ = {config.bpm}.
         </p>
@@ -102,7 +102,7 @@ export default function ResultsScreen({ result, onPractice, onBack }: Props) {
             <button
               key={bar.bar}
               title={barTooltip(bar)}
-              className={`h-10 w-12 rounded text-sm tabular-nums text-white ${barColor(bar)} ${selected ? 'ring-2 ring-gray-900 ring-offset-1' : ''}`}
+              className={`h-10 w-12 rounded text-sm tabular-nums text-white ${barColor(bar)} ${selected ? 'ring-2 ring-accent ring-offset-1 ring-offset-surface' : ''}`}
               onClick={() => clickBar(bar.bar)}
             >
               {bar.bar}
@@ -121,10 +121,10 @@ export default function ResultsScreen({ result, onPractice, onBack }: Props) {
           </button>
         </div>
       ) : (
-        <p className="mt-2 text-xs text-gray-500">Click a bar to drill it; click a second bar to widen the range.</p>
+        <p className="mt-2 text-xs text-ink-muted">Click a bar to drill it; click a second bar to widen the range.</p>
       )}
 
-      <label className="mt-4 flex items-center gap-2 text-sm text-gray-600">
+      <label className="mt-4 flex items-center gap-2 text-sm text-ink-muted">
         Zoom
         <input type="range" min={8} max={80} value={pixelsPerBeat} onChange={(e) => setPixelsPerBeat(Number(e.target.value))} />
       </label>
@@ -141,12 +141,12 @@ export default function ResultsScreen({ result, onPractice, onBack }: Props) {
           highlightBars={config.barRange}
         />
       </div>
-      <p className="mt-2 text-xs text-gray-500">
+      <p className="mt-2 text-xs text-ink-muted">
         Gray: reference. Green: correct and on time. Yellow: correct but off time. Red: wrong or extra. Hollow: missed.
       </p>
 
       <table className="mt-4 text-sm tabular-nums">
-        <thead className="text-left text-gray-500">
+        <thead className="text-left text-ink-muted">
           <tr>
             {['Bar', 'Notes', 'Pitch', 'Wrong', 'Missed', 'Extra', 'On time', 'Mean |dev|', 'Bias'].map((heading) => (
               <th key={heading} className="pr-4 font-normal">
@@ -157,7 +157,7 @@ export default function ResultsScreen({ result, onPractice, onBack }: Props) {
         </thead>
         <tbody>
           {score.bars.map((bar) => (
-            <tr key={bar.bar} className={bar.referenceCount === 0 ? 'text-gray-400' : ''}>
+            <tr key={bar.bar} className={bar.referenceCount === 0 ? 'text-ink-muted/60' : ''}>
               <td className="pr-4">{bar.bar}</td>
               <td className="pr-4">{bar.referenceCount}</td>
               <td className="pr-4">{bar.referenceCount ? percent(bar.pitchAccuracy) : '–'}</td>
@@ -179,7 +179,7 @@ function Stat({ label, value, color }: { label: string; value: number | string; 
   return (
     <div>
       <div className={`text-2xl font-medium tabular-nums ${color}`}>{value}</div>
-      <div className="text-sm text-gray-500">{label}</div>
+      <div className="text-sm text-ink-muted">{label}</div>
     </div>
   )
 }
@@ -195,7 +195,7 @@ function biasLabel(meanDeviationMs: number): string {
 }
 
 function barColor(bar: BarScore): string {
-  if (bar.referenceCount === 0) return 'bg-gray-300'
+  if (bar.referenceCount === 0) return 'bg-line'
   if (bar.pitchAccuracy >= 0.95 && bar.extra === 0) return 'bg-green-500'
   if (bar.pitchAccuracy >= 0.8) return 'bg-yellow-500'
   return 'bg-red-500'
@@ -206,4 +206,4 @@ function barTooltip(bar: Summary & { bar: number }): string {
   return `Bar ${bar.bar}: ${percent(bar.pitchAccuracy)} pitch, ${bar.wrong} wrong, ${bar.missed} missed, ${bar.extra} extra, ${percent(bar.timing.onTime)} on time`
 }
 
-const buttonClass = 'rounded border border-gray-300 px-3 py-1 hover:bg-gray-100'
+const buttonClass = 'btn'

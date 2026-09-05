@@ -126,24 +126,24 @@ export default function DrillsScreen({ performances, onStartSession }: Props) {
         <button className={buttonClass} onClick={() => setBpm(Math.min(MAX_BPM, bpm + 5))}>
           +5
         </button>
-        <button className={`${buttonClass} ml-6 bg-green-100 font-medium`} onClick={() => start(false)}>
+        <button className="btn btn-primary ml-6" onClick={() => start(false)}>
           Practice
         </button>
         <button className={buttonClass} onClick={() => start(true)}>
           Loop
         </button>
-        <span className="ml-4 text-sm text-gray-500">
+        <span className="ml-4 text-sm text-ink-muted">
           {piece.title} · {barCount(piece)} {barCount(piece) === 1 ? 'bar' : 'bars'}
         </span>
       </div>
 
-      <label className="flex items-center gap-2 text-sm text-gray-600">
+      <label className="flex items-center gap-2 text-sm text-ink-muted">
         Zoom
         <input type="range" min={8} max={80} value={pixelsPerBeat} onChange={(e) => setPixelsPerBeat(Number(e.target.value))} />
       </label>
       <PianoRoll piece={piece} includedTracks={[0, 1]} pixelsPerBeat={pixelsPerBeat} />
       {piece.score && (
-        <div className="rounded border border-gray-300 p-2">
+        <div className="card p-2">
           <ScoreView score={piece.score} zoom={PREVIEW_SCORE_ZOOM} maxHeight="45vh" />
         </div>
       )}
@@ -151,5 +151,5 @@ export default function DrillsScreen({ performances, onStartSession }: Props) {
   )
 }
 
-const selectClass = 'rounded border border-gray-300 px-2 py-1'
-const buttonClass = 'rounded border border-gray-300 px-3 py-1 hover:bg-gray-100'
+const selectClass = 'field'
+const buttonClass = 'btn'

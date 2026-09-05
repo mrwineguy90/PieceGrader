@@ -1,11 +1,76 @@
 @import "tailwindcss";
 
-/* Desktop Chrome app. Light theme only. No text selection so clicking
-   controls during a session never highlights the page. */
+/* Design tokens. Light values on :root, dark values when the OS is dark.
+   Tailwind utilities (bg-surface, text-ink, border-line, bg-accent …) read
+   them through @theme inline, so components never name a raw colour. The
+   scoring colours (green / yellow / red) stay Tailwind's own and always mean
+   correct / off time / wrong. */
+:root {
+  color-scheme: light dark;
+  --surface: #f6f6f7;
+  --surface-raised: #ffffff;
+  --ink: #18181b;
+  --ink-muted: #6b6b76;
+  --line: #e4e4e7;
+  --accent: #4f46e5;
+  --accent-ink: #ffffff;
+  --accent-soft: #e0e7ff;
+  --roll-grid: #e4e4e7;
+  --roll-grid-strong: #a1a1aa;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --surface: #131316;
+    --surface-raised: #1d1d22;
+    --ink: #f4f4f5;
+    --ink-muted: #a1a1aa;
+    --line: #34343b;
+    --accent: #818cf8;
+    --accent-ink: #0f0f14;
+    --accent-soft: #2e2c63;
+    --roll-grid: #2b2b32;
+    --roll-grid-strong: #5b5b66;
+  }
+}
+
+@theme inline {
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-soft: var(--accent-soft);
+}
+
+/* Desktop Chrome app. No text selection so clicking controls during a
+   session never highlights the page. */
 html,
 body {
   height: 100%;
-  background-color: #ffffff;
+  background-color: var(--surface);
+  color: var(--ink);
   -webkit-user-select: none;
   user-select: none;
+}
+
+/* The handful of components every screen is built from. */
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-1 rounded-md border border-line bg-surface-raised px-3 py-1.5 text-sm font-medium text-ink transition-colors hover:border-ink-muted disabled:cursor-not-allowed disabled:opacity-40;
+  }
+  .btn-primary {
+    @apply border-accent bg-accent text-accent-ink hover:border-accent hover:opacity-90;
+  }
+  .field {
+    @apply rounded-md border border-line bg-surface-raised px-2 py-1.5 text-sm text-ink;
+  }
+  .card {
+    @apply rounded-lg border border-line bg-surface-raised p-4;
+  }
+  .label {
+    @apply text-xs font-medium tracking-wide text-ink-muted uppercase;
+  }
 }

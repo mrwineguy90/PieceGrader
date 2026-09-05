@@ -14,7 +14,7 @@ interface Props {
 export default function PieceList({ pieces, selectedId, importError, onSelect, onImportFile }: Props) {
   return (
     <aside className="w-64 shrink-0">
-      <label className="block cursor-pointer rounded border border-gray-300 px-3 py-1 text-center hover:bg-gray-100">
+      <label className="btn w-full cursor-pointer">
         Import .mid file
         <input
           type="file"
@@ -32,11 +32,11 @@ export default function PieceList({ pieces, selectedId, importError, onSelect, o
         {pieces.map((piece) => (
           <li key={piece.id}>
             <button
-              className={`w-full rounded px-2 py-1 text-left hover:bg-gray-100 ${piece.id === selectedId ? 'bg-blue-50 font-medium' : ''}`}
+              className={`w-full rounded-md px-2 py-1.5 text-left hover:bg-line/60 ${piece.id === selectedId ? 'bg-accent-soft font-medium' : ''}`}
               onClick={() => onSelect(piece)}
             >
               {piece.title}
-              <span className="block text-xs text-gray-500">
+              <span className="block text-xs text-ink-muted">
                 {barCount(piece)} bars · {piece.timeSignature.join('/')} · {bpmLabel(piece.defaultBpm, piece.timeSignature)} ·{' '}
                 {piece.trackNames.length} {piece.trackNames.length === 1 ? 'track' : 'tracks'}
                 {piece.score && ' · score'}
@@ -45,7 +45,7 @@ export default function PieceList({ pieces, selectedId, importError, onSelect, o
           </li>
         ))}
       </ul>
-      {pieces.length === 0 && <p className="mt-4 text-sm text-gray-500">No pieces yet. Import a .mid file to start.</p>}
+      {pieces.length === 0 && <p className="mt-4 text-sm text-ink-muted">No pieces yet. Import a .mid file to start.</p>}
     </aside>
   )
 }

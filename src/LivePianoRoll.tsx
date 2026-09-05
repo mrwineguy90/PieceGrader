@@ -34,7 +34,7 @@ export default function LivePianoRoll({ recorder, metronome, windowMs, heightPx 
     return () => cancelAnimationFrame(frame)
   }, [recorder, metronome, windowMs])
 
-  return <canvas ref={canvasRef} className="w-full rounded border border-gray-300" style={{ height: heightPx }} />
+  return <canvas ref={canvasRef} className="w-full rounded-lg border border-line bg-surface-raised" style={{ height: heightPx }} />
 }
 
 function paint(canvas: HTMLCanvasElement, recorder: NoteRecorder, metronome: Metronome, windowMs: number, nowMs: number) {
@@ -51,6 +51,9 @@ function paint(canvas: HTMLCanvasElement, recorder: NoteRecorder, metronome: Met
   context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0)
   context.clearRect(0, 0, width, height)
 
+  // Canvas can't use CSS variables directly; read the theme tokens each frame so dark mode applies.
+  const theme = getComputedStyle(document.documentElement)
+  const token = (name: string) => theme.getPropertyValue(name).trim()
   const plotWidth = width - LABEL_GUTTER_PX
   const leftEdgeMs = nowMs - windowMs * NOW_FRACTION
   const rowHeight = height / PITCH_ROWS
@@ -62,12 +65,12 @@ function paint(canvas: HTMLCanvasElement, recorder: NoteRecorder, metronome: Met
   context.textBaseline = 'middle'
   for (let midi = 24; midi <= HIGHEST_MIDI; midi += 12) {
     const y = yForMidi(midi) + rowHeight
-    context.strokeStyle = midi === 60 ? '#9ca3af' : '#e5e7eb'
+    context.strokeStyle = midi === 60 ? token('--roll-grid-strong') : token('--roll-grid')
     context.beginPath()
     context.moveTo(LABEL_GUTTER_PX, y)
     context.lineTo(width, y)
     context.stroke()
-    context.fillStyle = '#6b7280'
+    context.fillStyle = token('--ink-muted')
     context.fillText(`C${midi / 12 - 1}`, 4, y - rowHeight / 2)
   }
 
@@ -76,7 +79,7 @@ function paint(canvas: HTMLCanvasElement, recorder: NoteRecorder, metronome: Met
     const beatMs = metronome.beatTimeMs(beat.index)
     if (beatMs < leftEdgeMs || beatMs > leftEdgeMs + windowMs) continue
     const x = xForTime(beatMs)
-    context.strokeStyle = beat.isDownbeat ? '#4b5563' : '#d1d5db'
+    context.strokeStyle = beat.isDownbeat ? token('--ink-muted') : token('--roll-grid-strong')
     context.lineWidth = beat.isDownbeat ? 1.5 : 1
     context.beginPath()
     context.moveTo(x, 0)
@@ -86,13 +89,13 @@ function paint(canvas: HTMLCanvasElement, recorder: NoteRecorder, metronome: Met
   context.lineWidth = 1
 
   // Finished notes, then notes still held (drawn up to now)
-  context.fillStyle = '#3b82f6'
+  context.fillStyle = '#6366f1'
   for (const note of recorder.notes) {
     const endMs = note.startMs + note.durationMs
     if (endMs < leftEdgeMs) continue
     context.fillRect(xForTime(note.startMs), yForMidi(note.midi), Math.max(2, xForTime(endMs) - xForTime(note.startMs)), rowHeight)
   }
-  context.fillStyle = '#1d4ed8'
+  context.fillStyle = '#4338ca'
   for (const note of recorder.activeNotes()) {
     context.fillRect(xForTime(note.startMs), yForMidi(note.midi), Math.max(2, xForTime(nowMs) - xForTime(note.startMs)), rowHeight)
   }

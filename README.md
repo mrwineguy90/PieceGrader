@@ -31,7 +31,7 @@ In Chrome: open the Pages URL → address bar install icon → **Install**. Web 
 | `vite.config.ts` | Vite + React + Tailwind plugins, PWA manifest + service worker, vitest config |
 | `public/favicon.svg` | App icon |
 | `src/main.tsx` | Mounts `App` into `#root` |
-| `src/index.css` | Tailwind import; light theme only; no text selection |
+| `src/index.css` | Design tokens (light on `:root`, dark under `prefers-color-scheme`), exposed to Tailwind via `@theme inline`; the `btn`, `btn-primary`, `field`, `card`, `label` component classes; no text selection |
 | `src/App.tsx` | Tab shell (Pieces, History, Record a piece, Keyboard check); owns the MIDI connection, pieces, performance history and the session; saves one history entry per finished pass; shows the session or results screen while one is active |
 | `src/DrillsScreen.tsx` | Drills tab: the ladder, then the picker (family, variant, key, hands, octaves, notes per click, tempo); piano roll and score preview; Practice / Loop |
 | `src/LadderView.tsx` | The progression ladder: next step, levels with pass counts, step status dots; locked levels shown as one line; click a step to load it |
@@ -73,6 +73,8 @@ In Chrome: open the Pages URL → address bar install icon → **Install**. Web 
 localStorage is capped at about 5 MB, so attach scores as compressed `.mxl` (tens of KB) rather than `.musicxml` (hundreds of KB), and delete old performances from History if it fills up; the app alerts if a save fails.
 
 ## Behaviour notes
+
+- Theme: follows the OS light/dark setting, no toggle. Colours are tokens in `index.css` (`--surface`, `--ink`, `--line`, `--accent` …); components use `bg-surface`, `text-ink-muted`, `border-line`, `bg-accent` and the `btn` / `field` / `card` classes rather than raw Tailwind colours. Green, yellow and red are reserved for scoring. The piano rolls read the tokens (the canvas one via `getComputedStyle`), and the notation renderer's ink colour follows the theme, reloading the score if the theme changes.
 
 - Bars are numbered from 1 and counted from the start of the file; pickup bars are not special-cased. Remove repeats in MuseScore before export so bar numbers match the printed page.
 - **Time signature** (deviation from spec §3, which stored `beatsPerBar`): the piece keeps its signature, e.g. 6/8. The metronome clicks the note the bottom number names, accent on beat 1, so 6/8 gets six eighth-note clicks per bar and 3/4 gets three quarter clicks. BPM is shown as that note per minute (♪ = 160); the file's quarter-note tempo is converted on import. Note times stay in quarter notes internally and scoring converts. Only the first tempo and time signature in the file are used; the piece's signature can be edited in the library (top number 1–32, bottom 2/4/8/16), which re-expresses the BPM so the real tempo is unchanged.
