@@ -9,7 +9,7 @@ import type { Piece } from './types'
 import { barCount, beatsPerBar, clickLengthInBeats } from './pieces'
 import { ON_TIME_MS, type NoteResult } from './scoring'
 
-const ROW_HEIGHT = 8
+const DEFAULT_ROW_HEIGHT = 8
 const HEADER_HEIGHT = 18
 const LABEL_GUTTER = 32
 const PITCH_PADDING = 2 // rows of space above and below the piece's range
@@ -37,11 +37,12 @@ interface Props {
   overlay?: Overlay
   highlightBars?: [number, number] // bars outside this range are dimmed
   playheadBeat?: number // current position in quarter notes, while a session runs
+  rowHeight?: number // px per semitone; the session screen uses a taller roll
 }
 
 const SCROLL_MARGIN_PX = 80 // the playhead flips the page this close to the right edge
 
-export default function PianoRoll({ piece, includedTracks, pixelsPerBeat, overlay, highlightBars, playheadBeat }: Props) {
+export default function PianoRoll({ piece, includedTracks, pixelsPerBeat, overlay, highlightBars, playheadBeat, rowHeight = DEFAULT_ROW_HEIGHT }: Props) {
   const bars = barCount(piece)
   const scrollBox = useRef<HTMLDivElement>(null)
 
@@ -61,14 +62,14 @@ export default function PianoRoll({ piece, includedTracks, pixelsPerBeat, overla
   const highest = Math.max(...midis) + PITCH_PADDING
   const rows = highest - lowest + 1
   const width = LABEL_GUTTER + bars * quartersPerBar * pixelsPerBeat
-  const height = HEADER_HEIGHT + rows * ROW_HEIGHT
+  const height = HEADER_HEIGHT + rows * rowHeight
   const xForBeat = (beat: number) => LABEL_GUTTER + beat * pixelsPerBeat
-  const yForMidi = (midi: number) => HEADER_HEIGHT + (highest - midi) * ROW_HEIGHT
+  const yForMidi = (midi: number) => HEADER_HEIGHT + (highest - midi) * rowHeight
   const noteWidth = (beats: number) => Math.max(2, beats * pixelsPerBeat - 1)
 
   const octaveLines = []
   for (let midi = Math.ceil(lowest / 12) * 12; midi <= highest; midi += 12) {
-    const y = yForMidi(midi) + ROW_HEIGHT
+    const y = yForMidi(midi) + rowHeight
     octaveLines.push(
       <g key={midi}>
         <line x1={LABEL_GUTTER} x2={width} y1={y} y2={y} stroke={midi === 60 ? 'var(--roll-grid-strong)' : 'var(--roll-grid)'} />
@@ -111,7 +112,7 @@ export default function PianoRoll({ piece, includedTracks, pixelsPerBeat, overla
           x={xForBeat(note.startBeat)}
           y={yForMidi(note.midi) + 1}
           width={noteWidth(note.durationBeats)}
-          height={ROW_HEIGHT - 2}
+          height={rowHeight - 2}
           rx={1}
           fill="none"
           stroke={RESULT_COLORS.missed}
@@ -128,7 +129,7 @@ export default function PianoRoll({ piece, includedTracks, pixelsPerBeat, overla
         x={xForBeat(startBeat)}
         y={yForMidi(note.midi) + 1}
         width={noteWidth(note.durationMs / msPerBeat)}
-        height={ROW_HEIGHT - 2}
+        height={rowHeight - 2}
         rx={1}
         fill={offTime ? OFF_TIME_COLOR : RESULT_COLORS[result.kind]}
         opacity={result.kind === 'extra' ? 0.6 : 0.9}
@@ -155,7 +156,7 @@ export default function PianoRoll({ piece, includedTracks, pixelsPerBeat, overla
             x={xForBeat(note.startBeat)}
             y={yForMidi(note.midi) + 1}
             width={noteWidth(note.durationBeats)}
-            height={ROW_HEIGHT - 2}
+            height={rowHeight - 2}
             rx={1}
             fill={referenceFill(note.track)}
           />

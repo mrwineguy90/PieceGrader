@@ -51,7 +51,7 @@ In Chrome: open the Pages URL → address bar install icon → **Install**. Web 
 | `src/ScoreView.tsx` | Renders an attached MusicXML score with OpenSheetMusicDisplay; walks OSMD's cursor once to learn each step's beat and pixel position, then draws its own playhead that glides between steps and scrolls to follow |
 | `src/PianoRoll.tsx` | SVG piano roll of a piece in beats: bar lines and numbers, octave lines, notes colored by track; optional overlay of scored played notes (green/yellow/red/hollow); dims bars outside a range |
 | `src/useSession.ts` | A practice session: count-in, recording into a `NoteRecorder`, bar/beat status, passes (one, or repeated with a one-bar gap in loop mode) each scored, auto-stop or Esc |
-| `src/SessionScreen.tsx` | While playing: piece line, big bar number, beat dots, the score with a moving cursor (or the reference roll with a playhead when no score is attached), pass number and last pass result in loop mode, Stop button |
+| `src/SessionScreen.tsx` | While playing: one strip with the big bar number, beat dots, session facts, loop pass info, score size and Stop (Esc); then the score with a moving playhead (or the reference roll) filling a wider page |
 | `src/ResultsScreen.tsx` | Pass picker, pitch and timing headlines, per-bar strip (click to drill), piano roll with the performance overlaid, per-bar table |
 | `src/scoring.ts` | Chord grouping, Needleman–Wunsch chord alignment, note matching by pitch, pitch and timing summaries overall and per bar |
 | `src/pieces.ts` | `.mid` → `Piece` via `midi-file` (tempo, time signature, track names, percussion ignored); `splitAtMiddleC`; bar, click-length and BPM-conversion helpers |

@@ -93,7 +93,7 @@ export default function App() {
   }
 
   return (
-    <main className="mx-auto max-w-6xl p-6">
+    <main className={`mx-auto p-6 ${status.phase === 'idle' ? 'max-w-6xl' : 'max-w-[1500px]'}`}>
       <div className="flex items-baseline gap-6">
         <h1 className="text-xl font-semibold tracking-tight">Piece Grader</h1>
         {status.phase === 'idle' && (
