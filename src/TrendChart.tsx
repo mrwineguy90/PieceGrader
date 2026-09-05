@@ -1,0 +1,70 @@
+// Two lines on one 0–100% axis, oldest on the left: pitch accuracy and
+// on-time percentage per saved pass. Each point carries a tooltip.
+
+import type { Performance } from './types'
+
+const CHART_WIDTH = 720
+const CHART_HEIGHT = 200
+const CHART_PADDING = { top: 12, right: 16, bottom: 28, left: 40 }
+const PITCH_COLOR = '#2563eb'
+const TIMING_COLOR = '#d97706'
+
+export function percent(fraction: number): string {
+  return `${Math.round(fraction * 100)}%`
+}
+
+export default function TrendChart({ history }: { history: Performance[] }) {
+  const plotWidth = CHART_WIDTH - CHART_PADDING.left - CHART_PADDING.right
+  const plotHeight = CHART_HEIGHT - CHART_PADDING.top - CHART_PADDING.bottom
+  const xFor = (index: number) => CHART_PADDING.left + (history.length === 1 ? plotWidth / 2 : (index / (history.length - 1)) * plotWidth)
+  const yFor = (fraction: number) => CHART_PADDING.top + (1 - fraction) * plotHeight
+  const series = [
+    { label: 'Pitch accuracy', color: PITCH_COLOR, value: (p: Performance) => p.score.pitchAccuracy },
+    { label: 'On time', color: TIMING_COLOR, value: (p: Performance) => p.score.timing.onTime },
+  ]
+
+  return (
+    <div>
+      <div className="flex gap-6 text-sm text-ink-muted">
+        {series.map((s) => (
+          <span key={s.label} className="flex items-center gap-2">
+            <span className="inline-block h-3 w-3 rounded-full" style={{ background: s.color }} />
+            {s.label}
+          </span>
+        ))}
+      </div>
+      <div className="overflow-x-auto">
+        <svg width={CHART_WIDTH} height={CHART_HEIGHT} className="mt-1 block">
+          {[0, 0.5, 1].map((fraction) => (
+            <g key={fraction}>
+              <line x1={CHART_PADDING.left} x2={CHART_WIDTH - CHART_PADDING.right} y1={yFor(fraction)} y2={yFor(fraction)} stroke="var(--roll-grid)" />
+              <text x={CHART_PADDING.left - 6} y={yFor(fraction) + 4} fontSize={11} textAnchor="end" fill="var(--ink-muted)">
+                {fraction * 100}%
+              </text>
+            </g>
+          ))}
+          <text x={CHART_PADDING.left} y={CHART_HEIGHT - 8} fontSize={11} fill="var(--ink-muted)">
+            oldest
+          </text>
+          <text x={CHART_WIDTH - CHART_PADDING.right} y={CHART_HEIGHT - 8} fontSize={11} textAnchor="end" fill="var(--ink-muted)">
+            latest
+          </text>
+          {series.map((s) => (
+            <g key={s.label}>
+              {history.length > 1 && (
+                <polyline points={history.map((p, index) => `${xFor(index)},${yFor(s.value(p))}`).join(' ')} fill="none" stroke={s.color} strokeWidth={2} />
+              )}
+              {history.map((p, index) => (
+                <circle key={p.id} cx={xFor(index)} cy={yFor(s.value(p))} r={4} fill={s.color} stroke="var(--surface-raised)" strokeWidth={2}>
+                  <title>
+                    {new Date(p.playedAt).toLocaleString()}: {s.label} {percent(s.value(p))}
+                  </title>
+                </circle>
+              ))}
+            </g>
+          ))}
+        </svg>
+      </div>
+    </div>
+  )
+}

@@ -90,12 +90,28 @@ export function parseDrillId(id: string): DrillSpec | null {
   return { family: family as Family, variant, key, hands: hands as Hands, octaves: Number(octaves), notesPerClick: Number(notesPerClick) }
 }
 
-export function drillTitle(spec: DrillSpec): string {
+// A drill's "base" is everything except hands, octaves and notes per click:
+// History shows one entry per base ("F♯ harmonic minor scale") with the ways
+// it was played as variants.
+export function drillBaseId(spec: DrillSpec): string {
+  return ['drill', spec.family, spec.variant, spec.key].join(':')
+}
+
+export function drillBaseTitle(spec: DrillSpec): string {
   const family = FAMILIES[spec.family]
   const variant = family.variants.find((each) => each.id === spec.variant)?.label ?? spec.variant
-  const parts = [spec.family === 'hanon' ? `Hanon ${variant}` : `${keyLabel(spec.key)} ${variant} ${family.label.toLowerCase()}`]
+  return spec.family === 'hanon' ? `Hanon ${variant}` : `${keyLabel(spec.key)} ${variant} ${family.label.toLowerCase()}`
+}
+
+export function drillVariantLabel(spec: DrillSpec): string {
+  const family = FAMILIES[spec.family]
+  const parts: string[] = []
   if (family.usesOctaves) parts.push(`${spec.octaves} octave${spec.octaves > 1 ? 's' : ''}`)
   parts.push(spec.hands === 'both' ? 'hands together' : `${spec.hands} hand`)
   if (family.usesNotesPerClick) parts.push({ 1: 'quarters', 2: 'eighths', 4: 'sixteenths' }[spec.notesPerClick] ?? `${spec.notesPerClick} per beat`)
   return parts.join(' · ')
+}
+
+export function drillTitle(spec: DrillSpec): string {
+  return `${drillBaseTitle(spec)} · ${drillVariantLabel(spec)}`
 }

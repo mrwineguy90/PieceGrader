@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { drillId, parseDrillId, type DrillSpec } from './drillCatalog'
+import { drillBaseId, drillBaseTitle, drillId, drillVariantLabel, parseDrillId, type DrillSpec } from './drillCatalog'
 import { drillToPiece, generateDrill } from './drills'
 import { HANON, hanonPitches } from './hanon'
 import { chromaticOctave, keyFifths, scaleUpAndDown, sevenNoteScale } from './pitches'
@@ -139,6 +139,16 @@ describe('ids and pieces', () => {
     const original = spec({ family: 'contrary', variant: 'harmonic-minor', key: 'F#', hands: 'both', octaves: 2, notesPerClick: 2 })
     expect(parseDrillId(drillId(original))).toEqual(original)
     expect(parseDrillId('not-a-drill')).toBeNull()
+  })
+
+  it('splits a drill into a base (for history) and a variant', () => {
+    const scale = spec({ variant: 'harmonic-minor', key: 'F#', hands: 'both', octaves: 2, notesPerClick: 2 })
+    expect(drillBaseId(scale)).toBe('drill:scale:harmonic-minor:F#')
+    expect(drillBaseTitle(scale)).toBe('F♯ harmonic minor scale')
+    expect(drillVariantLabel(scale)).toBe('2 octaves · hands together · eighths')
+    const hanon = spec({ family: 'hanon', variant: '7', key: 'C', hands: 'both', notesPerClick: 4 })
+    expect(drillBaseTitle(hanon)).toBe('Hanon No. 7')
+    expect(drillVariantLabel(hanon)).toBe('hands together · sixteenths')
   })
 
   it('builds a piece with a generated score and a sensible title', () => {

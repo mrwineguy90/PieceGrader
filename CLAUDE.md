@@ -6,7 +6,7 @@ Full spec is in `piece-grader-spec.md`. These rules apply every session and over
 - Allowed dependencies: `react`, `react-dom`, `vite`, `typescript`, `tailwindcss`, `vite-plugin-pwa`, `vitest`, `midi-file`, `opensheetmusicdisplay` (approved 2026-09-04 for the score view; the only notation rendering allowed). Anything else → ask first.
 - No state library, router, component library, CSS-in-JS, or form library. `useState` is enough.
 - No abstraction until something is used three times. No barrel `index.ts` files.
-- Under 30 source files (tests excluded), none over 250 lines. Propose a split before exceeding. (Raised from 20 on 2026-09-04 for the drills work; see `drills-spec.md`.)
+- Under 35 source files (tests excluded), none over 250 lines. Propose a split before exceeding. (Raised from 20 to 30 on 2026-09-04 for the drills work, see `drills-spec.md`, and to 35 the same day for the History and presentation work.)
 - Keep `README.md` current with a one-line-per-file map.
 
 ## Readability

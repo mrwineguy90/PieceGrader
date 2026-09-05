@@ -4,7 +4,6 @@
 // page until it is dismissed.
 
 import { useState } from 'react'
-import { pieceForDrillId } from './drills'
 import DrillsScreen from './DrillsScreen'
 import HistoryScreen from './HistoryScreen'
 import MidiCheck from './MidiCheck'
@@ -71,12 +70,9 @@ export default function App() {
   } else if (screen === 'drills') {
     body = <DrillsScreen performances={performances} onStartSession={session.start} />
   } else if (screen === 'history') {
-    // Drills are not stored, so rebuild one piece per drill id found in history.
-    const drillIds = [...new Set(performances.map((p) => p.pieceId).filter((id) => id.startsWith('drill:')))]
-    const drillPieces = drillIds.map(pieceForDrillId).filter((piece): piece is Piece => piece !== null)
     body = (
       <HistoryScreen
-        pieces={[...pieces, ...drillPieces]}
+        pieces={pieces}
         performances={performances}
         onDelete={(id) => changePerformances(performances.filter((p) => p.id !== id))}
       />
