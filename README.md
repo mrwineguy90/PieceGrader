@@ -33,8 +33,8 @@ In Chrome: open the Pages URL → address bar install icon → **Install**. Web 
 | `src/main.tsx` | Mounts `App` into `#root` |
 | `src/index.css` | Design tokens (light on `:root`, dark under `prefers-color-scheme`), exposed to Tailwind via `@theme inline`; the `btn`, `btn-primary`, `field`, `card`, `label` component classes; no text selection |
 | `src/App.tsx` | Tab shell (Pieces, History, Record a piece, Keyboard check); owns the MIDI connection, pieces, performance history and the session; saves one history entry per finished pass; shows the session or results screen while one is active |
-| `src/DrillsScreen.tsx` | Drills tab: the ladder, then the picker (family, variant, key, hands, octaves, notes per click, tempo); piano roll and score preview; Practice / Loop |
-| `src/LadderView.tsx` | The progression ladder: next step, levels with pass counts, step status dots; locked levels shown as one line; click a step to load it |
+| `src/DrillsScreen.tsx` | Drills tab: picker card (family, variant, key, hands, octaves, notes per click, tempo, Practice / Loop, next ladder step), the preview, then the ladder |
+| `src/LadderView.tsx` | The progression ladder: levels with progress bars, steps grouped by drill with the keys as status-coloured chips, next step ringed; locked levels shown as one line; click a chip to load it |
 | `src/ladder.ts` | Ladder data (five levels of drill id + tempo) and the rules: pass mark, step status from history, level locking, next step |
 | `src/drillCatalog.ts` | Which drills exist: families and variants, key lists, the id that encodes a drill, titles |
 | `src/drills.ts` | Drill generator: scales, contrary motion, arpeggios, broken chords, five-finger patterns, cadences and Hanon as spelled notes in 4/4; drill → `Piece` with a generated score |
@@ -45,7 +45,8 @@ In Chrome: open the Pages URL → address bar install icon → **Install**. Web 
 | `src/RecordScreen.tsx` | Record a reference: title, time signature, tempo, count-in, play, stop; quantized to 1/16 and saved as a piece |
 | `src/MidiCheck.tsx` | Keyboard check screen: input picker and status, metronome controls with beat indicator, live piano roll |
 | `src/PieceList.tsx` | Library sidebar: import `.mid` button and the list of pieces |
-| `src/PieceLibrary.tsx` | Selected piece: rename and toggle tracks, time signature, split hands at middle C, attach/remove a MusicXML score, BPM, bar range, loop toggle, zoomable reference roll, score preview, Practice button, delete |
+| `src/PieceLibrary.tsx` | Selected piece as a setup card: Practice on top; tracks, time signature, split hands, attach/remove a score; tempo; bar range and loop; then the preview |
+| `src/PiecePreview.tsx` | Piano roll or score, one at a time, behind a segmented control; used by the library and the drills picker |
 | `src/ScoreView.tsx` | Renders an attached MusicXML score with OpenSheetMusicDisplay; walks OSMD's cursor once to learn each step's beat and pixel position, then draws its own playhead that glides between steps and scrolls to follow |
 | `src/PianoRoll.tsx` | SVG piano roll of a piece in beats: bar lines and numbers, octave lines, notes colored by track; optional overlay of scored played notes (green/yellow/red/hollow); dims bars outside a range |
 | `src/useSession.ts` | A practice session: count-in, recording into a `NoteRecorder`, bar/beat status, passes (one, or repeated with a one-bar gap in loop mode) each scored, auto-stop or Esc |
