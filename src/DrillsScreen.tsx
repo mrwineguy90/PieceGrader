@@ -1,13 +1,17 @@
-// Drills (drills-spec.md): the free picker. Choose family, variant, key,
-// hands, octaves, notes per click and tempo; the generated piece goes to the
-// same session as an imported one. The ladder is added in phase 8.
+// Drills (drills-spec.md): the progression ladder and the free picker.
+// Choose family, variant, key, hands, octaves, notes per click and tempo, or
+// click a ladder step to load it; the generated piece goes to the same
+// session as an imported one.
 
 import { useMemo, useState } from 'react'
-import { FAMILIES, keysFor, type DrillSpec, type Family, type Hands } from './drillCatalog'
+import { FAMILIES, keysFor, parseDrillId, type DrillSpec, type Family, type Hands } from './drillCatalog'
 import { drillToPiece, generateDrill } from './drills'
+import LadderView from './LadderView'
+import type { LadderStep } from './ladder'
 import PianoRoll from './PianoRoll'
 import { barCount } from './pieces'
 import ScoreView from './ScoreView'
+import type { Performance } from './types'
 import type { SessionConfig } from './useSession'
 
 const MIN_BPM = 30
@@ -20,10 +24,11 @@ const HANDS: { id: Hands; label: string }[] = [
 ]
 
 interface Props {
+  performances: Performance[]
   onStartSession: (config: SessionConfig) => void
 }
 
-export default function DrillsScreen({ onStartSession }: Props) {
+export default function DrillsScreen({ performances, onStartSession }: Props) {
   const [spec, setSpec] = useState<DrillSpec>({ family: 'scale', variant: 'major', key: 'C', hands: 'right', octaves: 1, notesPerClick: 1 })
   const [bpm, setBpm] = useState(60)
   const [pixelsPerBeat, setPixelsPerBeat] = useState(30)
@@ -41,10 +46,19 @@ export default function DrillsScreen({ onStartSession }: Props) {
     setSpec(next)
   }
 
+  const pickStep = (step: LadderStep) => {
+    const stepSpec = parseDrillId(step.id)
+    if (!stepSpec) return
+    setSpec(stepSpec)
+    setBpm(step.bpm)
+  }
+
   const start = (loop: boolean) => onStartSession({ piece, tracks: [0, 1], bpm, barRange: [1, barCount(piece)], loop })
 
   return (
-    <div className="mt-6">
+    <div className="mt-6 space-y-4">
+      <LadderView performances={performances} onPick={pickStep} />
+
       <div className="flex flex-wrap items-center gap-4 text-sm">
         <label className="flex items-center gap-2">
           Drill
@@ -104,7 +118,7 @@ export default function DrillsScreen({ onStartSession }: Props) {
         )}
       </div>
 
-      <div className="mt-3 flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <button className={buttonClass} onClick={() => setBpm(Math.max(MIN_BPM, bpm - 5))}>
           −5
         </button>
@@ -123,15 +137,13 @@ export default function DrillsScreen({ onStartSession }: Props) {
         </span>
       </div>
 
-      <label className="mt-3 flex items-center gap-2 text-sm text-gray-600">
+      <label className="flex items-center gap-2 text-sm text-gray-600">
         Zoom
         <input type="range" min={8} max={80} value={pixelsPerBeat} onChange={(e) => setPixelsPerBeat(Number(e.target.value))} />
       </label>
-      <div className="mt-2">
-        <PianoRoll piece={piece} includedTracks={[0, 1]} pixelsPerBeat={pixelsPerBeat} />
-      </div>
+      <PianoRoll piece={piece} includedTracks={[0, 1]} pixelsPerBeat={pixelsPerBeat} />
       {piece.score && (
-        <div className="mt-4 rounded border border-gray-300 p-2">
+        <div className="rounded border border-gray-300 p-2">
           <ScoreView score={piece.score} zoom={PREVIEW_SCORE_ZOOM} maxHeight="45vh" />
         </div>
       )}

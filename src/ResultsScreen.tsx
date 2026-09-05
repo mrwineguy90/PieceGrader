@@ -5,6 +5,7 @@
 import { useState } from 'react'
 import PianoRoll from './PianoRoll'
 import { bpmLabel, quarterNoteBpm } from './pieces'
+import { meetsPassMark, PASS_ON_TIME, PASS_PITCH } from './ladder'
 import { CLOSE_MS, ON_TIME_MS, type BarScore, type Summary } from './scoring'
 import { rangeStartBeat, type SessionConfig, type SessionResult } from './useSession'
 
@@ -86,6 +87,13 @@ export default function ResultsScreen({ result, onPractice, onBack }: Props) {
         <Stat label="bias" value={biasLabel(score.timing.meanDeviationMs)} color="text-gray-800" />
         <Stat label="evenness (gap error)" value={`${Math.round(score.timing.evennessMs)} ms`} color="text-gray-800" />
       </div>
+
+      {config.piece.source === 'drill' && (
+        <p className={`mt-3 text-sm ${meetsPassMark(score) ? 'text-green-700' : 'text-gray-500'}`}>
+          {meetsPassMark(score) ? 'Meets the ladder pass mark' : 'Below the ladder pass mark'} ({Math.round(PASS_PITCH * 100)}% pitch,{' '}
+          {Math.round(PASS_ON_TIME * 100)}% on time) at ♩ = {config.bpm}.
+        </p>
+      )}
 
       <div className="mt-6 flex flex-wrap gap-1">
         {score.bars.map((bar) => {

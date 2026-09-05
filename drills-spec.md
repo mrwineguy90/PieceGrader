@@ -56,6 +56,6 @@ Outline (loosely the RCM/ABRSM grade order; contents adjustable):
 
 6. **Drill engine** — generators for every family except Hanon, MusicXML generator, unit tests, the picker (free mode) so drills can be played. *(Built 2026-09-04: `pitches.ts`, `drills.ts`, `drillNotation.ts`, `DrillsScreen.tsx`.)*
 7. **Hanon and evenness** — the 20 patterns from a verified source, evenness metric on results. *(Built 2026-09-04: `hanon.ts` from the Mutopia LilyPond files, parsed mechanically; `drillCatalog.ts` split out of `drills.ts`.)*
-8. **Ladder** — levels and steps, pass status from history, locking, next-up.
+8. **Ladder** — levels and steps, pass status from history, locking, next-up. *(Built 2026-09-04: `ladder.ts`, `LadderView.tsx`; results show the pass mark for drills.)*
 
 New files expected: `drills.ts`, `drillNotation.ts`, `hanon.ts`, `ladder.ts`, `DrillsScreen.tsx`, plus tests. The file cap in `CLAUDE.md` was raised to 30 source files (tests excluded) for this.

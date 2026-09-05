@@ -33,7 +33,9 @@ In Chrome: open the Pages URL → address bar install icon → **Install**. Web 
 | `src/main.tsx` | Mounts `App` into `#root` |
 | `src/index.css` | Tailwind import; light theme only; no text selection |
 | `src/App.tsx` | Tab shell (Pieces, History, Record a piece, Keyboard check); owns the MIDI connection, pieces, performance history and the session; saves one history entry per finished pass; shows the session or results screen while one is active |
-| `src/DrillsScreen.tsx` | Drill picker: family, variant, key, hands, octaves, notes per click, tempo; piano roll and score preview; Practice / Loop |
+| `src/DrillsScreen.tsx` | Drills tab: the ladder, then the picker (family, variant, key, hands, octaves, notes per click, tempo); piano roll and score preview; Practice / Loop |
+| `src/LadderView.tsx` | The progression ladder: next step, levels with pass counts, step status dots; locked levels shown as one line; click a step to load it |
+| `src/ladder.ts` | Ladder data (five levels of drill id + tempo) and the rules: pass mark, step status from history, level locking, next step |
 | `src/drillCatalog.ts` | Which drills exist: families and variants, key lists, the id that encodes a drill, titles |
 | `src/drills.ts` | Drill generator: scales, contrary motion, arpeggios, broken chords, five-finger patterns, cadences and Hanon as spelled notes in 4/4; drill → `Piece` with a generated score |
 | `src/hanon.ts` | Hanon 1–20 as data (group pattern, group counts, lead-in overrides), transcribed mechanically from the Mutopia engraving; expands to pitches |
@@ -84,6 +86,7 @@ localStorage is capped at about 5 MB, so attach scores as compressed `.mxl` (ten
 - Timing: for each correct note, deviation from its expected time at the session BPM. "On time" is within ±60 ms, "close" within ±120 ms; bias is the signed mean (early or late). Reported overall and per bar; extra notes are charged to the bar they were played in.
 - Per-bar strip: green is ≥95% pitch with no extras, yellow ≥80%, red below, gray for bars with no notes in the selected tracks.
 - Drills (see `drills-spec.md`): generated on the fly, never stored; the piece id encodes the parameters (`drill:scale:harmonic-minor:F#:both:2:2`) and History rebuilds the piece from it. Everything is in 4/4; scales go up and down with the top note once and the last note held with the longest plain value that fits the bar. Hands together is two tracks an octave apart; four-octave drills start an octave lower. Keys are spelled conventionally (D♭ major, C♯ minor); modes and pentatonics take the key signature of their parent scale.
+- Ladder (see `drills-spec.md`): five levels of steps, each a drill at a tempo. A step is passed when any saved performance of that drill at or above the tempo scored ≥95% pitch and ≥80% on time; nothing is stored beyond history. A level opens when the one before it is fully passed (Extras opens with Level 3). Locked levels are listed but not expanded; the picker can play anything regardless. Results for a drill say whether that pass met the mark.
 - Hanon: the right hand starts on C3 as in the book (an octave below the other drills), the left hand on C2; sixteenths by default, two groups per bar. No. 12 and No. 20 keep their irregular first groups and lead-ins; No. 20 ends on the E–C chord.
 - Evenness (results, timing row): the mean change in deviation from one correct note to the next, so a steady lag scores 0 and only uneven gaps count. The number that matters for scales.
 - History: every finished pass is saved (loop passes individually) with date, tempo, bars, tracks and the score summary. The chart plots pitch accuracy and on-time % per pass, oldest to newest; hover a point for its date. Rows can be deleted.

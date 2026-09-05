@@ -69,7 +69,7 @@ export default function App() {
   } else if (screen === 'pieces') {
     body = <PieceLibrary pieces={pieces} onChangePieces={changePieces} onStartSession={session.start} />
   } else if (screen === 'drills') {
-    body = <DrillsScreen onStartSession={session.start} />
+    body = <DrillsScreen performances={performances} onStartSession={session.start} />
   } else if (screen === 'history') {
     // Drills are not stored, so rebuild one piece per drill id found in history.
     const drillIds = [...new Set(performances.map((p) => p.pieceId).filter((id) => id.startsWith('drill:')))]
