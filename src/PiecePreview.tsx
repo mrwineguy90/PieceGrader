@@ -36,7 +36,7 @@ export default function PiecePreview({ piece, includedTracks, highlightBars }: P
       </div>
       <div className="mt-3">
         {showScore && piece.score ? (
-          <ScoreView score={piece.score} zoom={SCORE_ZOOM} maxHeight="55vh" />
+          <ScoreView score={piece.score} zoom={SCORE_ZOOM} maxHeight="55vh" visibleStaves={includedTracks} />
         ) : (
           <PianoRoll piece={piece} includedTracks={includedTracks} pixelsPerBeat={pixelsPerBeat} highlightBars={highlightBars} />
         )}

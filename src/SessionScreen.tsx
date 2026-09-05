@@ -75,7 +75,7 @@ export default function SessionScreen({ status, positionBeat, onStop }: Props) {
 
       {config.piece.score ? (
         <div className="card p-3">
-          <ScoreView score={config.piece.score} positionBeat={playheadBeat} zoom={scoreZoom} maxHeight="78vh" />
+          <ScoreView score={config.piece.score} positionBeat={playheadBeat} zoom={scoreZoom} maxHeight="78vh" visibleStaves={config.tracks} />
         </div>
       ) : (
         <PianoRoll

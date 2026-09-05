@@ -32,9 +32,13 @@ interface Props {
   positionBeat?: number // quarter notes from the start of the piece; omit for a static preview
   zoom: number // 1 = OSMD's default size
   maxHeight: string // CSS length; the score scrolls inside this
+  // Which staves to draw, by index from the top (track 0 = top staff, track 1
+  // = bottom), so the score mirrors the piano roll's hand selection. Omit, or
+  // pass indexes that don't exist in the file, and every staff is drawn.
+  visibleStaves?: number[]
 }
 
-export default function ScoreView({ score, positionBeat, zoom, maxHeight }: Props) {
+export default function ScoreView({ score, positionBeat, zoom, maxHeight, visibleStaves }: Props) {
   const scrollBox = useRef<HTMLDivElement>(null)
   const container = useRef<HTMLDivElement>(null)
   const line = useRef<HTMLDivElement>(null)
@@ -77,6 +81,7 @@ export default function ScoreView({ score, positionBeat, zoom, maxHeight }: Prop
       .load(new Blob([decodeScoreFile(score.base64).buffer as ArrayBuffer]))
       .then(() => {
         if (cancelled) return
+        applyStaffVisibility(instance, visibleStaves)
         instance.render()
         steps.current = collectSteps(instance)
         lastScrolledTop.current = null
@@ -93,14 +98,17 @@ export default function ScoreView({ score, positionBeat, zoom, maxHeight }: Prop
     }
   }, [score.base64, dark]) // only reload when the file or theme changes; zoom and position are handled below
 
+  const staffKey = visibleStaves?.join(',') ?? 'all'
   useEffect(() => {
     const instance = osmd.current
-    if (!instance || !ready || instance.zoom === zoom) return
+    if (!instance || !ready) return
+    const changed = applyStaffVisibility(instance, visibleStaves) || instance.zoom !== zoom
+    if (!changed) return
     instance.zoom = zoom
     instance.render()
     steps.current = collectSteps(instance) // pixel positions changed
     lastScrolledTop.current = null
-  }, [zoom, ready])
+  }, [zoom, staffKey, ready]) // eslint-free: staffKey stands in for the visibleStaves array
 
   // Move the line directly in the DOM: this runs every animation frame.
   useEffect(() => {
@@ -131,6 +139,43 @@ export default function ScoreView({ score, positionBeat, zoom, maxHeight }: Prop
   )
 }
 
+// Each measure's opening instructions (clef, key, time) per staff, as read
+// from the file, so they can be reordered for hidden staves and put back.
+const originalOpeningInstructions = new WeakMap<object, unknown[]>()
+
+// Show only the requested staves; returns whether anything changed. Falls
+// back to showing everything when the request matches no staff at all.
+function applyStaffVisibility(instance: OpenSheetMusicDisplay, visibleStaves: number[] | undefined): boolean {
+  const staves = instance.Sheet.Staves
+  const requested = visibleStaves?.filter((index) => index < staves.length) ?? []
+  const wanted = (index: number) => requested.length === 0 || requested.includes(index)
+  let changed = false
+  staves.forEach((staff, index) => {
+    if (staff.Visible !== wanted(index)) {
+      staff.Visible = wanted(index)
+      changed = true
+    }
+  })
+  if (!changed) return false
+
+  // OSMD 2.1 draws the clef at the start of a system from the opening
+  // instructions at the *visible* staff index, while it positions notes by the
+  // staff's own clef. With the top staff hidden that puts a treble clef on the
+  // bass staff. Reordering the instructions into visible order fixes the
+  // glyph without touching note placement (verified by measuring the SVG).
+  const order = staves.map((_, index) => index).sort((a, b) => Number(!wanted(a)) - Number(!wanted(b)))
+  for (const measure of instance.Sheet.SourceMeasures) {
+    const entries = measure.FirstInstructionsStaffEntries
+    if (!entries || entries.length === 0) continue
+    const original = originalOpeningInstructions.get(measure) ?? [...entries]
+    originalOpeningInstructions.set(measure, original)
+    order.forEach((absolute, position) => {
+      entries[position] = original[absolute] as (typeof entries)[number]
+    })
+  }
+  return true
+}
+
 // Walk OSMD's cursor front to back, reading where it lands each step. The
 // cursor only positions itself while shown, so show it (fully transparent)
 // and hide it again after.
@@ -143,7 +188,7 @@ function collectSteps(instance: OpenSheetMusicDisplay): Step[] {
   while (!cursor.iterator.EndReached) {
     const element = cursor.cursorElement
     const measureIndex = cursor.iterator.CurrentMeasureIndex
-    const measure = instance.GraphicSheet.MeasureList[measureIndex]?.[0]
+    const measure = instance.GraphicSheet.MeasureList[measureIndex]?.find((each) => each) // first drawn staff; hidden ones are gaps
     const measureBox = measure?.PositionAndShape
     const x = parseFloat(element.style.left) + CURSOR_HALF_WIDTH_UNITS * pxPerUnit
     // Vertical extent from the layout, not from the cursor image: its height

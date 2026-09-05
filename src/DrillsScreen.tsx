@@ -52,7 +52,9 @@ export default function DrillsScreen({ performances, onStartSession }: Props) {
     setBpm(step.bpm)
   }
 
-  const start = (loop: boolean) => onStartSession({ piece, tracks: [0, 1], bpm, barRange: [1, barCount(piece)], loop })
+  // Track 0 is the right hand, track 1 the left; the preview and the session show only the chosen hands.
+  const tracks = spec.hands === 'right' ? [0] : spec.hands === 'left' ? [1] : [0, 1]
+  const start = (loop: boolean) => onStartSession({ piece, tracks, bpm, barRange: [1, barCount(piece)], loop })
 
   return (
     <div className="mt-6 space-y-4">
@@ -149,7 +151,7 @@ export default function DrillsScreen({ performances, onStartSession }: Props) {
         </div>
       </div>
 
-      <PiecePreview piece={piece} includedTracks={[0, 1]} />
+      <PiecePreview piece={piece} includedTracks={tracks} />
 
       <LadderView performances={performances} selectedId={drill.id} onPick={pickStep} />
     </div>
