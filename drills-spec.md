@@ -32,7 +32,7 @@ Evenness: the spread (standard deviation) of the gaps between consecutive note o
 
 ## Progression
 
-The ladder is a fixed list of **levels**, each a list of **steps**. A step is a drill id plus a target tempo. Pass thresholds: **95% pitch and 80% on time**, at or above the target tempo (constants, easy to change).
+The ladder is a fixed list of **levels**, each a list of **steps**. A step is a drill id plus a target tempo. Pass thresholds: **95% pitch and 90% of correct notes within ±120 ms**, at or above the target tempo (constants, easy to change). *Changed 2026-09-05 from 80% within ±60 ms, which was too strict for a human against a click.*
 
 Pass status is **derived from history**, not stored: a step is passed when any saved performance of that drill id at or above the tempo meets the thresholds. So nothing can drift from what was actually played.
 

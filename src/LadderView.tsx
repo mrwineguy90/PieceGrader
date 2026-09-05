@@ -5,8 +5,9 @@
 
 import { useState } from 'react'
 import { drillTitle, parseDrillId, type DrillSpec } from './drillCatalog'
-import { isLevelOpen, LADDER, nextStep, PASS_ON_TIME, PASS_PITCH, passedCount, stepStatus, type LadderLevel, type LadderStep, type StepStatus } from './ladder'
+import { isLevelOpen, LADDER, nextStep, PASS_CLOSE, PASS_PITCH, passedCount, stepStatus, type LadderLevel, type LadderStep, type StepStatus } from './ladder'
 import { keyLabel } from './pitches'
+import { CLOSE_MS } from './scoring'
 import type { Performance } from './types'
 
 const CHIP_COLORS: Record<StepStatus, string> = {
@@ -50,7 +51,7 @@ export default function LadderView({ performances, selectedId, onPick }: Props) 
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 className="text-lg font-semibold">Progression</h2>
         <span className="text-xs text-ink-muted">
-          A step passes at {Math.round(PASS_PITCH * 100)}% pitch and {Math.round(PASS_ON_TIME * 100)}% on time, at or above its tempo.
+          A step passes at {Math.round(PASS_PITCH * 100)}% pitch with {Math.round(PASS_CLOSE * 100)}% of notes within ±{CLOSE_MS} ms, at or above its tempo.
         </span>
       </div>
       <p className="mt-1 text-xs text-ink-muted">Chips: gray not tried, yellow tried, green passed. Ring = next step. Solid = loaded in the picker.</p>

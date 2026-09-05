@@ -4,7 +4,7 @@
 // drill it.
 
 import { useState } from 'react'
-import { meetsPassMark, PASS_ON_TIME, PASS_PITCH } from './ladder'
+import { meetsPassMark, PASS_CLOSE, PASS_PITCH } from './ladder'
 import PianoRoll from './PianoRoll'
 import { bpmLabel, quarterNoteBpm } from './pieces'
 import { CLOSE_MS, ON_TIME_MS, type BarScore, type Summary } from './scoring'
@@ -92,7 +92,7 @@ export default function ResultsScreen({ result, onPractice, onBack }: Props) {
         {config.piece.source === 'drill' && (
           <p className={`mt-4 text-sm ${meetsPassMark(score) ? 'text-green-700 dark:text-green-400' : 'text-ink-muted'}`}>
             {meetsPassMark(score) ? 'Meets the ladder pass mark' : 'Below the ladder pass mark'} ({Math.round(PASS_PITCH * 100)}% pitch,{' '}
-            {Math.round(PASS_ON_TIME * 100)}% on time) at ♩ = {config.bpm}.
+            {Math.round(PASS_CLOSE * 100)}% within ±{CLOSE_MS} ms) at ♩ = {config.bpm}.
           </p>
         )}
       </div>

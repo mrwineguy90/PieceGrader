@@ -18,9 +18,10 @@ export interface Beat {
 //
 // Gotcha: on a context that has only just been created, getOutputTimestamp()
 // returns zeros for both clocks until the audio thread has produced output,
-// often for the first ~100 ms. So the anchor is re-captured on every
-// scheduler tick and nothing caches beat times computed before it settled;
-// callers ask beatTimeMs() when they need a time.
+// often for the first ~100 ms. So the anchor is re-captured on each scheduler
+// tick until a few readings in a row agree, then frozen: re-reading it forever
+// would let the pairing's tick-to-tick jitter shake the playhead. Nothing
+// caches beat times computed before it settled; callers ask beatTimeMs().
 export interface ClockAnchor {
   contextTime: number // seconds, AudioContext clock
   performanceTime: number // ms, performance.now() clock
@@ -33,12 +34,16 @@ export function audioTimeToPerformanceMs(anchor: ClockAnchor, audioTime: number)
 const LOOKAHEAD_SEC = 0.1 // schedule clicks this far ahead
 const TICK_MS = 25 // how often the scheduler wakes up
 const FIRST_BEAT_DELAY_SEC = 0.1 // so the first click isn't already late
+const ANCHOR_AGREEMENT_MS = 1 // consecutive readings this close count as settled
+const ANCHOR_SETTLED_AFTER = 3 // how many agreeing readings freeze the anchor
 
 export class Metronome {
   running = false
   beats: Beat[] = [] // every beat scheduled so far, for drawing beat lines
   private context: AudioContext | null = null
   private anchor: ClockAnchor = { contextTime: 0, performanceTime: 0 }
+  private anchorSettled = false
+  private agreeingReadings = 0
   private timer: number | null = null
   private bpm = 60
   private beatsPerBar = 4
@@ -57,6 +62,8 @@ export class Metronome {
     this.firstBeatAudioTime = this.context.currentTime + FIRST_BEAT_DELAY_SEC
     this.nextBeatAudioTime = this.firstBeatAudioTime
     this.anchor = this.captureAnchor()
+    this.anchorSettled = false
+    this.agreeingReadings = 0
     this.running = true
     this.timer = window.setInterval(() => this.scheduleDueBeats(), TICK_MS)
     this.scheduleDueBeats()
@@ -97,9 +104,22 @@ export class Metronome {
     return { contextTime: context.currentTime, performanceTime: performance.now() }
   }
 
+  // Re-read the clock pairing until three readings in a row agree, then keep it.
+  private settleAnchor(): void {
+    if (this.anchorSettled) return
+    const context = this.context!
+    const stamp = context.getOutputTimestamp?.()
+    if (!stamp?.contextTime || !stamp.performanceTime) return // not producing output yet
+    const fresh = { contextTime: stamp.contextTime, performanceTime: stamp.performanceTime }
+    const offsetOf = (anchor: ClockAnchor) => anchor.performanceTime - anchor.contextTime * 1000
+    this.agreeingReadings = Math.abs(offsetOf(fresh) - offsetOf(this.anchor)) <= ANCHOR_AGREEMENT_MS ? this.agreeingReadings + 1 : 0
+    this.anchor = fresh
+    if (this.agreeingReadings >= ANCHOR_SETTLED_AFTER) this.anchorSettled = true
+  }
+
   private scheduleDueBeats(): void {
     const context = this.context!
-    this.anchor = this.captureAnchor()
+    this.settleAnchor()
     while (this.nextBeatAudioTime < context.currentTime + LOOKAHEAD_SEC) {
       const isDownbeat = this.nextBeatIndex % this.beatsPerBar === 0
       this.playClick(this.nextBeatAudioTime, isDownbeat)

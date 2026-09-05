@@ -6,8 +6,12 @@
 import { drillId, type DrillSpec, type Hands } from './drillCatalog'
 import type { Performance } from './types'
 
+// Pass mark: pitch accuracy, and the share of correct notes inside the
+// "close" window (±CLOSE_MS in scoring.ts, 120 ms). The tighter ±60 ms
+// "on time" figure is shown for information but not required: it proved
+// hard to reach even when a scale sounded right (changed 2026-09-05).
 export const PASS_PITCH = 0.95
-export const PASS_ON_TIME = 0.8
+export const PASS_CLOSE = 0.9
 
 export interface LadderStep {
   id: string // drill id
@@ -123,7 +127,7 @@ export const LADDER: LadderLevel[] = [
 ]
 
 export function meetsPassMark(score: Performance['score']): boolean {
-  return score.pitchAccuracy >= PASS_PITCH && score.timing.onTime >= PASS_ON_TIME
+  return score.pitchAccuracy >= PASS_PITCH && score.timing.close >= PASS_CLOSE
 }
 
 export function stepStatus(step: LadderStep, performances: Performance[]): StepStatus {

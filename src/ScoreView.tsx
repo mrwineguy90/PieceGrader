@@ -5,9 +5,9 @@
 // stepped through the whole score once (hidden from the user by the end) and
 // each step's beat and pixel position are remembered. During a session the
 // line sits on the last step at or before the current beat and slides toward
-// the next step, or toward the barline when the next step starts a new bar,
-// so it never leaps across a line break early. This assumes the .mid and the
-// MusicXML came from the same MuseScore file (same bars, repeats removed).
+// the next step, through barlines; only when the next step is on another
+// system does it head for the barline and then jump. This assumes the .mid
+// and the MusicXML came from the same MuseScore file (same bars, repeats removed).
 
 import { CursorType, OpenSheetMusicDisplay } from 'opensheetmusicdisplay'
 import { useEffect, useRef, useState } from 'react'
@@ -222,6 +222,9 @@ function linePosition(steps: Step[], beat: number): { x: number; top: number; he
   if (!next) return step // hold on the last note
   const span = next.beat - step.beat
   const fraction = span <= 0 ? 0 : Math.min(1, (beat - step.beat) / span)
-  const targetX = next.measureIndex === step.measureIndex ? next.x : step.measureRight
+  // Glide straight to the next note, through barlines, as long as it is on the
+  // same system; at a line break head for the barline instead, then jump.
+  const sameSystem = next.top === step.top
+  const targetX = sameSystem ? next.x : step.measureRight
   return { x: step.x + fraction * (targetX - step.x), top: step.top, height: step.height }
 }

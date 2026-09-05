@@ -4,7 +4,7 @@ import { generateDrill } from './drills'
 import { isLevelOpen, LADDER, meetsPassMark, nextStep, passedCount, stepStatus, type LadderStep } from './ladder'
 import type { Performance } from './types'
 
-function performance(step: LadderStep, bpm: number, pitchAccuracy: number, onTime: number): Performance {
+function performance(step: LadderStep, bpm: number, pitchAccuracy: number, close: number): Performance {
   return {
     id: crypto.randomUUID(),
     pieceId: step.id,
@@ -20,7 +20,7 @@ function performance(step: LadderStep, bpm: number, pitchAccuracy: number, onTim
       missed: 0,
       extra: 0,
       pitchAccuracy,
-      timing: { count: 20, onTime, close: 1, meanAbsDeviationMs: 30, meanDeviationMs: 0, evennessMs: 10 },
+      timing: { count: 20, onTime: close * 0.7, close, meanAbsDeviationMs: 30, meanDeviationMs: 0, evennessMs: 10 },
       bars: [],
     },
   }
@@ -45,11 +45,12 @@ describe('ladder', () => {
     const step = LADDER[0].steps[0]
     expect(stepStatus(step, [])).toBe('untried')
     expect(stepStatus(step, [performance(step, 60, 0.9, 1)])).toBe('tried') // pitch too low
-    expect(stepStatus(step, [performance(step, 60, 1, 0.7)])).toBe('tried') // timing too low
+    expect(stepStatus(step, [performance(step, 60, 1, 0.85)])).toBe('tried') // too few notes within ±120 ms
     expect(stepStatus(step, [performance(step, 50, 1, 1)])).toBe('tried') // too slow
-    expect(stepStatus(step, [performance(step, 60, 0.95, 0.8)])).toBe('passed')
+    expect(stepStatus(step, [performance(step, 60, 0.95, 0.9)])).toBe('passed')
     expect(stepStatus(step, [performance(step, 80, 1, 1)])).toBe('passed') // faster counts
-    expect(meetsPassMark(performance(step, 60, 0.95, 0.8).score)).toBe(true)
+    // The ±60 ms "on time" figure is not part of the mark: 63% on time still passes with 90% close.
+    expect(meetsPassMark(performance(step, 60, 0.95, 0.9).score)).toBe(true)
   })
 
   it('opens levels in order and the extras with level 3', () => {
